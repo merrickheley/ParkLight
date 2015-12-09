@@ -10,29 +10,30 @@
 #include <pic16f570.h>
 #include <htc.h>
 
-unsigned char overflowNum = 0; //Overflow counter
-
 void init(void) {
-    PSA=0;      //Timer Clock Source is from Prescaler
-    T0CS=0;     //Prescaler gets clock from FCPU (5MHz)
-    GIE=1;      //Enable INTs globally
-
-    //Set RB1 as output because we have LED on it
-    TRISB&=0B11111101;
-    TRISC = 0x00; // Output - LED 2
-       
-    //RC4 = 0xFF;
-    //PORTCbits.RC4 = 1;
+    INTCON0bits.GIE = 1; //Enable INTs globally
+    INTCON1bits.T0IE = 1; // Enable timer 0 interrupts
+    INTCON1bits.RBIE = 1; // Enable port b interrupts
+    
+    // TRIG is RC7 - Output
+    TRISC = 0b01111111;
+    // ECHO is RB3 - Input - RB Interrupt trigger
+    TRISB = 0b11111111;
 }
 
 
 void main()
 {
     init();
-    while(1);   //Sit Idle Timer will do every thing!
-}
-
-//Main Interrupt Service Routine (ISR)
-void interrupt ISR()
-{
+    while(1) {
+        if(INTCON0bits.T0IF == 1) {
+            RC7 = 1;
+            unsigned char dummy  = 0;
+            unsigned char dummyTwo = 1;
+            RC7 = 0;
+            
+            unsigned char readValue = RB3;
+            INTCON0bits.T0IF = 0;
+        }
+    }
 }
