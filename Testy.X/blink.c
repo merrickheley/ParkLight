@@ -17,7 +17,7 @@ void init(void) {
     INTCON1bits.CWIE = 0; // Disable comparators
     
     // TRIG is RC7 - Output
-    TRISC = 0b01101111;
+    TRISC = 0b00000000;
     // ECHO is RB3 - Input - RB Interrupt trigger
     TRISB = 0b11111111;
 
@@ -31,6 +31,7 @@ void init(void) {
     
     OSCCAL = 0b01111110;
     OPTION = 0b00001000;
+    PORTC = 0b00000000;
 }
 
 
@@ -38,8 +39,8 @@ void main()
 {
     init();
     while(1) {
-        RC4 = 1;
-        PORTCbits.RC4 = 1;
+        //RC4 = 1;
+        PORTC = 0b11111111;
         if(INTCON0bits.T0IF == 1) {
             RC7 = 1;
             unsigned char dummy  = 0;
