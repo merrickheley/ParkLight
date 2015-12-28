@@ -25,13 +25,15 @@
  
 #include <xc.h>
 #include <htc.h>
-#define _XTAL_FREQ 8000000
 #include <stdio.h>
 #include <stdlib.h>
 #include <pic16f1828.h>
+#define _XTAL_FREQ 500000
 
 #define TRUE 1
 #define FALSE 0
+
+void HCSRTrigger();
 
 void init(void) 
 {
@@ -41,10 +43,10 @@ void init(void)
 
     // Enable each timer
     INTCONbits.TMR0IE = 1;
-    PIE1bits.TMR1IE = 1; 
-    PIE1bits.TMR2IE = 1;
-    PIE3bits.TMR4IE = 1;
-    PIE3bits.TMR6IE = 1;
+    //PIE1bits.TMR1IE = 1; 
+    //PIE1bits.TMR2IE = 1;
+    //PIE3bits.TMR4IE = 1;
+    //PIE3bits.TMR6IE = 1;
     
     // Set overall timer & timer0 prescaler to 1:1
     OPTION_REG = 0b00000000;
@@ -60,8 +62,9 @@ void init(void)
     T1CON = 0b01000001; 
     TRISC = 0b00000000; // Outputs for RC2 and RC6
     TRISB = 0b11110000; // Input for RB5
-
     
+    // Set outputs to low initially
+    PORTC = 0x00; 
 }
 
 void main()
@@ -69,40 +72,66 @@ void main()
     init();
     
     while(1) {
+        HCSRTrigger();
     }
 }
 
 void interrupt ISR(void) 
 {
-    static int oscillate = 0;
+//    static int oscillate = 0;
     
     // TIMER 0
     if (INTCONbits.TMR0IF && INTCONbits.TMR0IE) {
-        
+       
         INTCONbits.TMR0IF = 0;
     }
     
     // TIMER 1
-    if (PIR1bits.TMR1IF && PIE1bits.TMR1IE) {    
+    //if (PIR1bits.TMR1IF && PIE1bits.TMR1IE) {    
                         
-        RC6 = oscillate;
-        oscillate = !oscillate;
+        //RC6 = oscillate;
+        //oscillate = !oscillate;
         
-        PIR1bits.TMR1IF = 0;    
-    }  
+    //    PIR1bits.TMR1IF = 0;    
+    //}  
     // TIMER 2
-    if (PIR1bits.TMR2IF && PIE1bits.TMR2IE) {    
+    //if (PIR1bits.TMR2IF && PIE1bits.TMR2IE) {    
         
-        PIR1bits.TMR2IF = 0;    
-    }    
+    //    PIR1bits.TMR2IF = 0;    
+    //}    
     // TIMER 3
-    if (PIR3bits.TMR4IF && PIE3bits.TMR4IE) {
-        
-        PIR3bits.TMR4IF = 0;
-    }
+    //if (PIR3bits.TMR4IF && PIE3bits.TMR4IE) {
+    //    
+    //    PIR3bits.TMR4IF = 0;
+    //}
     // TIMER 4
-    if (PIR3bits.TMR6IF && PIE3bits.TMR6IE) {
-        
-        PIE3bits.TMR6IE = 0;
-    }
+    //if (PIR3bits.TMR6IF && PIE3bits.TMR6IE) {
+    //    
+    //    PIE3bits.TMR6IE = 0;
+    //}
 }  // End of isr()
+
+void HCSRTrigger() {
+    int counter = 0;
+    //Send at least a 10uS pulse on trigger line
+    RC2 = 1; //high
+    __delay_us(15); //wait 15uS
+    RC2 = 0; //low
+    
+    while (1) {
+        int echo = RB5;
+        if (echo > 0) {
+            counter = counter + 1;
+        } else {
+            break;
+        }
+    }
+
+    // convert counter to distance
+
+    if (counter > 0) {
+        RC6 = 1;
+    }
+
+    __delay_ms(100);
+}
