@@ -1,7 +1,9 @@
-#ifndef PINOUT_H
-#define	PINOUT_H
+#ifndef CONSTANTS_H
+#define CONSTANTS_H
 
 #include <pic16f1828.h>
+
+#define _XTAL_FREQ 500000
 
 #define LED_ON                  1
 #define LED_OFF                 0
@@ -14,4 +16,4 @@
 
 #define PIN_LED_0               RC6
 
-#endif	/* PINTOUT_H */
+#endif	/* CONSTANTS_H */

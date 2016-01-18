@@ -8,7 +8,8 @@
 
 // Project configuration files and definitions
 #include "config.h"
-#include "pinout.h"
+#include "constants.h"
+#include "HCSR04.h"
 
 // C libraries
 #include <stdio.h>
@@ -20,13 +21,6 @@
 #include <xc.h>
 #include <htc.h>
 #include <pic16f1828.h>
-
-#define _XTAL_FREQ 500000
-
-#define TRUE 1
-#define FALSE 0
-
-void HCSRTrigger();
 
 void init(void) 
 {
@@ -66,7 +60,7 @@ void main()
     init();
     
     while(1) {
-        HCSRTrigger();
+        HCSR04_Trigger();
         __delay_ms(1000);
         PIN_LED_0 = LED_OFF;
         __delay_ms(1000);
@@ -106,39 +100,3 @@ void interrupt ISR(void)
     //    PIE3bits.TMR6IE = 0;
     //}
 }  // End of isr()
-
-void HCSRTrigger() {
-    uint_fast16_t counter = 0;
-    uint_fast8_t risingEdge = FALSE;
-    
-    //Send at least a 10uS pulse on trigger line
-    PIN_US_TRIGGER = 1; //high
-    __delay_us(15); //wait 15uS
-    PIN_US_TRIGGER = 0; //low
-    
-    while (1) {
-        // If the pin is high
-        if (PIN_US_ECHO > 0) {
-            // There has been a rising edge
-            risingEdge = TRUE;
-            
-            // Check if we can increment the counter, otherwise break.
-            // TO DO: This should be compared to the max calibrated distance.
-            // If it is further away, we don't have to wait any longer.
-            if (counter < UINT_FAST16_MAX) {
-               counter++;
-            } else {
-                break;
-            }
-            
-        // If a falling edge occurs, break out.
-        } else if (risingEdge == TRUE && PIN_US_ECHO == 0) {
-            break;
-        }
-        __delay_us(10);
-    }
-    
-    if (counter > 50) {
-        PIN_LED_0 = LED_ON;
-    }
-}
