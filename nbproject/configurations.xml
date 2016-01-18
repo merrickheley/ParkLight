@@ -17,8 +17,8 @@
       <itemPath>HCSR04.c</itemPath>
       <itemPath>HCSR04.h</itemPath>
       <itemPath>constants.h</itemPath>
-      <itemPath>TLC5926IDWR.c</itemPath>
-      <itemPath>TLC5926IDWR.h</itemPath>
+      <itemPath>TLC5926.c</itemPath>
+      <itemPath>TLC5926.h</itemPath>
     </logicalFolder>
     <logicalFolder name="ExternalFiles"
                    displayName="Important Files"
@@ -135,6 +135,7 @@
         <property key="ToolFirmwareFilePath"
                   value="C:\Program Files (x86)/Microchip/MPLABX/v3.15/mplab_ide/mplablibs/modules/ext/PICKIT3.jar/PK3FW_014005.jam"/>
         <property key="ToolFirmwareOption.UseLatestFirmware" value="true"/>
+        <property key="firmware.download.all" value="false"/>
         <property key="hwtoolclock.frcindebug" value="false"/>
         <property key="memories.aux" value="false"/>
         <property key="memories.bootflash" value="true"/>
