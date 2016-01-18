@@ -10,12 +10,26 @@
 // Project includes
 #include "constants.h"
 
-// Path includes
+// C libraries
 #include <stdbool.h>
 #include <stdint.h>
 
+// PIC Includes
 #include <htc.h>
 
+/*
+ * HCSR04_Trigger
+ * 
+ * Get the distance from the HCSR04 ultrasonic sensor. 
+ * 
+ * Input: 
+ *      void
+ * 
+ * Output:  
+ *      void
+ * 
+ * TODO: Change this so it outputs a number of counts?
+ */
 void HCSR04_Trigger(void) {
     uint_fast16_t counter = 0;
     uint_fast8_t risingEdge = false;
@@ -25,6 +39,8 @@ void HCSR04_Trigger(void) {
     __delay_us(15); //wait 15uS
     PIN_US_TRIGGER = 0; //low
     
+    // Loop until we get a falling edge. 
+    // TODO: Add some protection in here to break out if there's no falling edge?
     while (1) {
         // If the pin is high
         if (PIN_US_ECHO > 0) {
