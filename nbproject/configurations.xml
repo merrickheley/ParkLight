@@ -17,6 +17,8 @@
       <itemPath>HCSR04.c</itemPath>
       <itemPath>HCSR04.h</itemPath>
       <itemPath>constants.h</itemPath>
+      <itemPath>TLC5926IDWR.c</itemPath>
+      <itemPath>TLC5926IDWR.h</itemPath>
     </logicalFolder>
     <logicalFolder name="ExternalFiles"
                    displayName="Important Files"
