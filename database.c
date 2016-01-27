@@ -11,7 +11,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#define CALC_CHECKSUM(db) checksum(db.serialised + DATABASE_CHECKSUM_OFFSET, \
+#define CALC_CHECKSUM(tdb) chcksum(tdb.serialised + DATABASE_CHECKSUM_OFFSET, \
     DATABASE_LENGTH - DATABASE_CHECKSUM_OFFSET, DATABASE_SEED)
 
 database db;
@@ -29,7 +29,7 @@ database db;
  * Output:
  *      Checksum
  */
-uint16_t checksum(uint8_t *array, size_t len, uint16_t seed)
+uint16_t chcksum(uint8_t *array, size_t len, uint16_t seed)
 {
     uint_fast16_t i;
     uint16_t chk;
@@ -54,7 +54,7 @@ void db_write(uint16_t location)
     //TODO: Do we need to bump the watchdog while we're in here?
     for (i = 0; i < DATABASE_LENGTH; i++)
         if (eeprom_read_register((uint16_t) (location + i)) != db.serialised[i])
-            eeprom_write_register((uint16_t) (location + i), db.serialised[i])
+            eeprom_write_register((uint16_t) (location + i), db.serialised[i]);
 }
 
 /*
@@ -65,13 +65,13 @@ void db_write(uint16_t location)
  * Output:
  *      Boolean, true if database checksum matches calculated checksum.
  */
-void db_read(uint16_t location)
+bool db_read(uint16_t location)
 {
     uint_fast16_t i;
     
     //TODO: Do we need to bump the watchdog while we're in here?
     for (i = 0; i < DATABASE_LENGTH; i++)
-        db.serialised = eeprom_read_register((uint16_t) (location + i));
+        db.serialised[i] = eeprom_read_register((uint16_t) (location + i));
     
     return db.sdb.checksum == CALC_CHECKSUM(db);        
 }
