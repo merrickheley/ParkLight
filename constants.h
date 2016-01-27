@@ -16,13 +16,17 @@
 
 // HCSR04 Pins
 #define PIN_US_TRIGGER          RC2
-#define PIN_US_ECHO             RB6
+#define PIN_US_ECHO             RB5
 
 // TLC5926 Pins
 // TODO: Update these to be accurate
-#define PIN_LED_SDI             RC1
+#define PIN_LED_SDI             RC4
 #define PIN_LED_CLK             RC3
-#define PIN_LED_LE              RC4
-#define PIN_LED_OE              RC5
+#define PIN_LED_LE              RC6
+#define PIN_LED_OE              RC7
+
+// Button pins for EEPROM
+#define PIN_SET_YELLOW          RA4
+#define PIN_SET_RED             RC5
 
 #endif	/* CONSTANTS_H */
