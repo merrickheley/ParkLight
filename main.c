@@ -68,7 +68,8 @@ void main()
 {
     init();
     
-    PIN_LED_OE = LED_ON;
+    // Drive it low to turn LED's on.
+    PIN_LED_OE = IO_LOW;
     
     while(1) {
         //HCSR04_Trigger();
