@@ -10,6 +10,7 @@
 #include "config.h"
 #include "constants.h"
 #include "HCSR04.h"
+#include "TLC5926.h"
 
 // C libraries
 #include <stdio.h>
@@ -59,6 +60,8 @@ void init(void)
     
     // Set outputs to low initially
     PORTC = 0x00; 
+    
+    TLC5926_init();
 }
 
 void main()
@@ -66,9 +69,12 @@ void main()
     init();
     
     while(1) {
-        HCSR04_Trigger();
+        //HCSR04_Trigger();
+        //PIN_LED_0 = PIN_SET_YELLOW;
+        TLC5926_SetLights(0xFF);
         __delay_ms(1000);
-        PIN_LED_0 = LED_OFF;
+        TLC5926_SetLights(0x00);
+        //PIN_LED_0 = LED_OFF;
         __delay_ms(1000);
     }
 }
