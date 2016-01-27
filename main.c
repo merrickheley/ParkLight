@@ -51,6 +51,7 @@ void init(void)
     TRISB = 0b11110000; // Input for RB5
     TRISC = 0b00000000; // Outputs for RC2 and RC6
     
+    // Disable analogue inputs. This should set all pins to digital.
     ANSELBbits.ANSB4 = 0;
     ANSELBbits.ANSB5 = 0;
     ANSELAbits.ANSELA = 0x00;
