@@ -51,6 +51,11 @@ void init(void)
     TRISB = 0b11110000; // Input for RB5
     TRISC = 0b00000000; // Outputs for RC2 and RC6
     
+    ANSELBbits.ANSB4 = 0;
+    ANSELBbits.ANSB5 = 0;
+    ANSELAbits.ANSELA = 0x00;
+    ANSELCbits.ANSELC = 0x00;
+    
     // Set outputs to low initially
     PORTC = 0x00; 
 }
