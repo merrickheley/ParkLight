@@ -20,17 +20,19 @@
 /*
  * HCSR04_Trigger
  * 
- * Get the distance from the HCSR04 ultrasonic sensor. 
+ * Get the distance from the HCSR04 ultrasonic sensor
+ * in a number of counts (not an actual distance!).
+ * The number of counts and accuracy can be fine tuned by 
+ * changing the delay between counts
  * 
  * Input: 
  *      void
  * 
  * Output:  
- *      void
+ *      uint_fast_8
  * 
- * TODO: Change this so it outputs a number of counts?
  */
-void HCSR04_Trigger(void) {
+uint_fast16_t HCSR04_Trigger(void) {
     uint_fast16_t counter = 0;
     uint_fast8_t risingEdge = false;
     
@@ -53,20 +55,18 @@ void HCSR04_Trigger(void) {
             // If it is further away, we don't have to wait any longer.
             if (counter < UINT_FAST16_MAX) {
                counter++;
-            }// else {
-            //    break;
-            //}
+            } else {
+                break;
+            }
             
         // If a falling edge occurs, break out.
         } else if (risingEdge == true && echo == 0) {
             break;
         }
         // If the pin is high
-        char echo = PIN_US_ECHO;
+        echo = PIN_US_ECHO;
         __delay_us(10);
     }
     
-    if (counter > 5) {
-        PIN_LED_0 = LED_ON;
-    }
+    return counter;
 }
