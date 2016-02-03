@@ -71,22 +71,52 @@ void main()
     // Drive it low to turn LED's on.
     PIN_LED_OE = IO_LOW;
     
+    uint8_t state = STATE_GREEN;
+    uint8_t transitionCounter = 0;
+    
     while(1) {
         uint_fast16_t distanceCounts = HCSR04_Trigger();
-
-        if(distanceCounts > 20) {
-            TLC5926_SetLights(GREEN_LIGHT);
-        } else if(distanceCounts > 5) {
-            TLC5926_SetLights(YELLOW_LIGHT);
-        } else {
-            TLC5926_SetLights(RED_LIGHT);
+        
+        if (state == STATE_GREEN) {
+            TLC5926_SetLights(LIGHT_GREEN);
+            
+            if (distanceCounts < LIGHT_THRESH_GREEN) {
+                transitionCounter = 0;
+                state = STATE_YELLOW;
+                TLC5926_SetLights(LIGHT_YELLOW);
+            }
+            
+        } else if (state == STATE_YELLOW) {          
+            if (distanceCounts < LIGHT_THRESH_YELLOW) {
+                transitionCounter = 0;
+                state = STATE_RED;
+                TLC5926_SetLights(LIGHT_RED);
+            }
+            else if (distanceCounts > LIGHT_THRESH_GREEN + 20) {
+                transitionCounter++;
+                if (transitionCounter == 10) {
+                    transitionCounter = 0;
+                    state = STATE_GREEN;
+                    TLC5926_SetLights(LIGHT_GREEN);
+                }                  
+            } else {
+                transitionCounter = 0;
+            }
+        } else if (state == STATE_RED) {          
+            if (distanceCounts > LIGHT_THRESH_YELLOW + LIGHT_THRESH_OFFSET) {
+                state = STATE_YELLOW;
+                transitionCounter = 0;
+                TLC5926_SetLights(LIGHT_YELLOW);
+            } else {
+                transitionCounter++;
+                if(transitionCounter > 50) { // Approx five seconds of red
+                    TLC5926_SetLights(LIGHT_OFF);
+                    // Break the loop, go into a power saving mode
+                }
+            }
         }
         
         __delay_ms(100);
-        
-        //TLC5926_SetLights(OFF_LIGHT);
-        //PIN_LED_0 = LED_OFF;
-        //__delay_ms(1000);
     }
 }
 

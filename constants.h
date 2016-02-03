@@ -25,13 +25,22 @@
 #define PIN_LED_OE              RC7
 
 // LED Array colour bitmap values
-#define RED_LIGHT 0x2000
-#define YELLOW_LIGHT 0x0800
-#define GREEN_LIGHT 0x0200
-#define OFF_LIGHT 0x0000
+#define LIGHT_RED 0x2000
+#define LIGHT_YELLOW 0x0800
+#define LIGHT_GREEN 0x0200
+#define LIGHT_OFF 0x0000
+
+#define LIGHT_THRESH_GREEN  20
+#define LIGHT_THRESH_YELLOW 5
+#define LIGHT_THRESH_OFFSET 2
 
 // Button pins for EEPROM
 #define BTN_SET_YELLOW          RB4
 #define BTN_SET_RED             RB5
+
+// Values for Green, yellow and red lighting states
+#define STATE_GREEN 0
+#define STATE_YELLOW 1
+#define STATE_RED 2
 
 #endif	/* CONSTANTS_H */
