@@ -74,16 +74,16 @@ void main()
     while(1) {
         //HCSR04_Trigger();
         //PIN_LED_0 = PIN_SET_YELLOW;
-        TLC5926_SetLights(0x0200);
+        TLC5926_SetLights(GREEN_LIGHT);
         __delay_ms(1000);
         
-        TLC5926_SetLights(0x0800);
+        TLC5926_SetLights(YELLOW_LIGHT);
         __delay_ms(1000);
         
-        TLC5926_SetLights(0x2000);
+        TLC5926_SetLights(RED_LIGHT);
         __delay_ms(1000);
         
-        TLC5926_SetLights(0x0000);
+        TLC5926_SetLights(OFF_LIGHT);
         //PIN_LED_0 = LED_OFF;
         __delay_ms(1000);
     }
