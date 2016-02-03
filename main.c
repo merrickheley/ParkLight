@@ -11,6 +11,7 @@
 #include "constants.h"
 #include "HCSR04.h"
 #include "TLC5926.h"
+#include "database.h"
 
 // C libraries
 #include <stdio.h>
@@ -117,6 +118,45 @@ void main()
         }
         
         __delay_ms(100);
+    }
+}
+
+void db_test() {
+    
+    unsigned int a = 0;
+    unsigned int i;
+    db_init();
+
+    for(i=0;i<5;i++)
+    {
+        a = ~a;
+        db.serialised[i] = a;
+    }
+    
+    db_write(i);
+    db_save();
+    __delay_ms(1000);
+        
+    if(db_read(0)) {
+        for(i=0;i<5;i++)
+        {
+            PIN_LED_0 = db.serialised[i];
+            __delay_ms(1000);
+        }
+    }
+}
+
+void db_test_read_only() {
+    
+    unsigned int i;
+    db_init();
+ 
+    if(db_read(0)) {
+        for(i=0;i<5;i++)
+        {
+            PIN_LED_0 = db.serialised[i];
+            __delay_ms(1000);
+        }
     }
 }
 
