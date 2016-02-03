@@ -7,10 +7,6 @@
 
 #include "database.h"
 
-// C libraries
-#include <stdbool.h>
-#include <stdint.h>
-
 #define CALC_CHECKSUM(tdb) chcksum(tdb.serialised + DATABASE_CHECKSUM_OFFSET, \
     DATABASE_LENGTH - DATABASE_CHECKSUM_OFFSET, DATABASE_SEED)
 

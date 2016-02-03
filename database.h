@@ -1,8 +1,11 @@
 #ifndef DATABASE_H
 #define	DATABASE_H
 
+#include "EEPROM.h"
+
 #include <stdbool.h>
 #include <stdint.h>
+#include <stddef.h>
 
 #define DEFAULT_RANGE_POINT_1       50
 #define DEFAULT_RANGE_POINT_2       100
@@ -32,5 +35,8 @@ extern database db;
 bool db_init(void);
 void db_reset(void);
 void db_save(void);
+uint16_t chcksum(uint8_t *array, size_t len, uint16_t seed);
+bool db_read(uint16_t location);
+void db_write(uint16_t location);
 
 #endif	/* DATABASE_H */
