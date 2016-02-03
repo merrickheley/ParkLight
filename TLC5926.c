@@ -68,8 +68,8 @@ void TLC5926_SetLights(uint16_t bitmap) {
         
         // Drive the data line low
         // TODO: Is this even necessary?
-        __delay_us(TLC5926_US_DELAY);
-        PIN_LED_SDI = IO_LOW;
+        //__delay_us(TLC5926_US_DELAY);
+        //PIN_LED_SDI = IO_LOW;
         
         // Trigger a falling edge
         __delay_us(TLC5926_US_DELAY);
