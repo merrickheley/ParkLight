@@ -72,20 +72,21 @@ void main()
     PIN_LED_OE = IO_LOW;
     
     while(1) {
-        //HCSR04_Trigger();
-        //PIN_LED_0 = PIN_SET_YELLOW;
-        TLC5926_SetLights(GREEN_LIGHT);
-        __delay_ms(1000);
+        uint_fast16_t distanceCounts = HCSR04_Trigger();
+
+        if(distanceCounts > 20) {
+            TLC5926_SetLights(GREEN_LIGHT);
+        } else if(distanceCounts > 5) {
+            TLC5926_SetLights(YELLOW_LIGHT);
+        } else {
+            TLC5926_SetLights(RED_LIGHT);
+        }
         
-        TLC5926_SetLights(YELLOW_LIGHT);
-        __delay_ms(1000);
+        __delay_ms(100);
         
-        TLC5926_SetLights(RED_LIGHT);
-        __delay_ms(1000);
-        
-        TLC5926_SetLights(OFF_LIGHT);
+        //TLC5926_SetLights(OFF_LIGHT);
         //PIN_LED_0 = LED_OFF;
-        __delay_ms(1000);
+        //__delay_ms(1000);
     }
 }
 
