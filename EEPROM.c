@@ -7,17 +7,6 @@
 
 #include "EEPROM.h"
 
-
-// Library Includes
-#include "constants.h"
-
-// C libraries
-#include <stdbool.h>
-#include <stdint.h>
-
-// PIC Includes
-#include <htc.h>
-
 /*
  * readFromEEPROM
  * 
@@ -31,7 +20,7 @@
  *      unsigned char EEDATA
  *      - The data stored at the given memory address
  */
-unsigned char readFromEEPROM(unsigned char address)
+unsigned char eeprom_read_register(unsigned char address)
 {
   EEADR = address; //Address to be read
   EECON1bits.EEPGD =  0;//Selecting EEPROM Data Memory
@@ -54,7 +43,7 @@ unsigned char readFromEEPROM(unsigned char address)
  *      void
  * 
  */
-void writeToEEPROM(unsigned char address, unsigned char data)
+void eeprom_write_register(unsigned char address, unsigned char data)
 {
   unsigned char INTCON_SAVE; // To save INTCON register value
   EEADR = address; // Address to write
