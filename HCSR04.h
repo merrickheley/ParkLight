@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 
-uint_fast16_t HCSR04_Trigger(void);
+void HCSR04_Trigger(void);
+
 
 #endif	/* HCSR04_H */
