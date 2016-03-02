@@ -24,6 +24,14 @@
 #include <htc.h>
 #include <pic16f1828.h>
 
+typedef volatile struct Global_State {
+    bool echoHit;
+    bool finishedRead;
+} State;
+
+static State state = { false, false }; 
+static LedState led_state = { STATE_RED, 0 };
+
 void init(void) 
 {
     INTCONbits.GIE = 1; // Enable global interrupts
@@ -61,7 +69,7 @@ void init(void)
     
     // Set outputs to low initially
     PORTC = 0x00; 
-    
+
     TLC5926_init();
 }
 
@@ -72,52 +80,65 @@ void main()
     // Drive it low to turn LED's on.
     PIN_LED_OE = IO_LOW;
     
-    uint8_t state = STATE_GREEN;
-    uint8_t transitionCounter = 0;
-    
     while(1) {
-        uint_fast16_t distanceCounts = HCSR04_Trigger();
-        
-        if (state == STATE_GREEN) {
-            TLC5926_SetLights(LIGHT_GREEN);
-            
-            if (distanceCounts < LIGHT_THRESH_GREEN) {
-                transitionCounter = 0;
-                state = STATE_YELLOW;
-                TLC5926_SetLights(LIGHT_YELLOW);
-            }
-            
-        } else if (state == STATE_YELLOW) {          
-            if (distanceCounts < LIGHT_THRESH_YELLOW) {
-                transitionCounter = 0;
-                state = STATE_RED;
-                TLC5926_SetLights(LIGHT_RED);
-            }
-            else if (distanceCounts > LIGHT_THRESH_GREEN + 20) {
-                transitionCounter++;
-                if (transitionCounter == 10) {
-                    transitionCounter = 0;
-                    state = STATE_GREEN;
-                    TLC5926_SetLights(LIGHT_GREEN);
-                }                  
-            } else {
-                transitionCounter = 0;
-            }
-        } else if (state == STATE_RED) {          
-            if (distanceCounts > LIGHT_THRESH_YELLOW + LIGHT_THRESH_OFFSET) {
-                state = STATE_YELLOW;
-                transitionCounter = 0;
-                TLC5926_SetLights(LIGHT_YELLOW);
-            } else {
-                transitionCounter++;
-                if(transitionCounter > 50) { // Approx five seconds of red
-                    TLC5926_SetLights(LIGHT_OFF);
-                    // Break the loop, go into a power saving mode
-                }
-            }
+    }
+}
+
+void interrupt ISR(void) 
+{
+    static uint_fast16_t counter = 0;
+	
+    // IOC triggered
+    if(INTCONbits.IOCIF && INTCONbits.IOCIE)
+    {
+		// if yellow button hit
+		if(BTN_SET_YELLOW == IO_HIGH) {
+            //TODO
         }
+		// if red button hit
+		else if(BTN_SET_RED == IO_HIGH) {
+            //TODO
+        }
+        // if echo pin input changed
+        else if(PIN_US_ECHO == IO_HIGH && state.echoHit == false) {
+            // rising edge
+            state.echoHit = true;
+        } 
+        else if(PIN_US_ECHO == IO_LOW && state.echoHit == true) {
+            // falling edge
+            state.finishedRead = true;
+        }
+
+		INTCONbits.IOCIF = 0;
+	}
+    
+    // TIMER 0 - System clock
+    if (INTCONbits.TMR0IF && INTCONbits.TMR0IE) {
         
-        __delay_ms(100);
+		// Every so often trigger the Ultrasonic sensor
+		HCSR04_Trigger();
+		// And leave the IOC_ISR to handle triggering the counting/stop counting
+		
+		INTCONbits.TMR0IF = 0;
+    }
+    
+    // TIMER 1 - External Oscillator
+    if (PIR1bits.TMR1IF && PIE1bits.TMR1IE) {    
+        
+		// Increment counter if global echo bit is set
+		if(state.echoHit == false) {
+			counter++;
+		} else if(state.finishedRead == true){
+			// display using the count
+            led_state = display_LED(counter, led_state.ledState, 
+                                    led_state.transitionCounter);
+            // Reset
+            counter = 0;
+            state.echoHit = false;
+            state.finishedRead = false;
+		}
+		
+        PIR1bits.TMR1IF = 0;    
     }
 }
 
@@ -159,37 +180,3 @@ void db_test_read_only() {
         }
     }
 }
-
-void interrupt ISR(void) 
-{
-//    static int oscillate = 0;
-    
-    // TIMER 0
-    if (INTCONbits.TMR0IF && INTCONbits.TMR0IE) {
-        INTCONbits.TMR0IF = 0;
-    }
-    
-    // TIMER 1
-    //if (PIR1bits.TMR1IF && PIE1bits.TMR1IE) {    
-                        
-        //RC6 = oscillate;
-        //oscillate = !oscillate;
-        
-    //    PIR1bits.TMR1IF = 0;    
-    //}  
-    // TIMER 2
-    //if (PIR1bits.TMR2IF && PIE1bits.TMR2IE) {    
-        
-    //    PIR1bits.TMR2IF = 0;    
-    //}    
-    // TIMER 3
-    //if (PIR3bits.TMR4IF && PIE3bits.TMR4IE) {
-    //    
-    //    PIR3bits.TMR4IF = 0;
-    //}
-    // TIMER 4
-    //if (PIR3bits.TMR6IF && PIE3bits.TMR6IE) {
-    //    
-    //    PIE3bits.TMR6IE = 0;
-    //}
-}  // End of isr()
