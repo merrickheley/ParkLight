@@ -37,6 +37,9 @@ void init(void)
     INTCONbits.GIE = 1; // Enable global interrupts
     INTCONbits.PEIE = 1; // Enable peripheral interrupts
     INTCONbits.T0IE = 1;
+    
+    // Enable IOC
+    INTCONbits.IOCIE = 1;
 
     // Enable each timer
     INTCONbits.TMR0IE = 1;
@@ -45,6 +48,9 @@ void init(void)
     //PIE1bits.TMR2IE = 1;
     //PIE3bits.TMR4IE = 1;
     //PIE3bits.TMR6IE = 1;
+    
+    // Weak pull-up enabled on ECHO pin
+    WPUAbits.WPUA2 = 1;
     
     // Set timer0 prescaler to 1:256
     OPTION_REG = 0b00000111;
@@ -95,9 +101,14 @@ void interrupt ISR(void)
     // IOC triggered
     if(INTCONbits.IOCIF && INTCONbits.IOCIE)
     {
+        
+
+        
 		// if yellow button hit
 		if(BTN_SET_YELLOW == IO_HIGH) {
             //TODO
+            // Can we simply set a flag here so the next falling edge of the 
+            // echo pin sets the YELLOW value to be counter?
         }
 		// if red button hit
 		else if(BTN_SET_RED == IO_HIGH) {
@@ -142,6 +153,7 @@ void interrupt ISR(void)
 			// display using the count
             led_state = display_LED(counter, led_state.ledState, 
                                     led_state.transitionCounter);
+
             // Reset
             counter = 0;
             state.echoHit = false;
