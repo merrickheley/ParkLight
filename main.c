@@ -40,13 +40,14 @@ void init(void)
 
     // Enable each timer
     INTCONbits.TMR0IE = 1;
-    //PIE1bits.TMR1IE = 1; 
+    PIE1bits.TMR1IE = 1; 
+    
     //PIE1bits.TMR2IE = 1;
     //PIE3bits.TMR4IE = 1;
     //PIE3bits.TMR6IE = 1;
     
-    // Set overall timer & timer0 prescaler to 1:1
-    OPTION_REG = 0b00000000;
+    // Set timer0 prescaler to 1:256
+    OPTION_REG = 0b00000111;
     
     // bits 7-6 -> 01 use system clock FOSC, 00 use FOSC/4
     // bit 5-4 T1CKPS<1:0>: Timer1 Input Clock Prescale Select bits
@@ -55,12 +56,13 @@ void init(void)
     //      01 = 1:2 Prescale value
     //      00 = 1:1 Prescale value
     
-    // Set timer 1 prescaler to 1:1 from FOSC
-    T1CON = 0b01000001; 
+    // Set timer 1 prescaler to 1:8 from FOSC (which should be 
+    // the value of the external oscillator)
+    T1CON = 0b01110001; 
     
     TRISB = 0b11110000; // Input for RB5
     TRISC = 0b00000000; // Outputs for RC2 and RC6
-    
+
     // Disable analogue inputs. This should set all pins to digital.
     ANSELBbits.ANSB4 = 0;
     ANSELBbits.ANSB5 = 0;
@@ -80,6 +82,8 @@ void main()
     // Drive it low to turn LED's on.
     PIN_LED_OE = IO_LOW;
     
+    PIN_LED_0 = 1;
+        
     while(1) {
     }
 }
@@ -112,8 +116,11 @@ void interrupt ISR(void)
 		INTCONbits.IOCIF = 0;
 	}
     
-    // TIMER 0 - System clock
+    // TIMER 0
     if (INTCONbits.TMR0IF && INTCONbits.TMR0IE) {
+        
+        // Turn on test LED when timer triggered
+        PIN_LED_0 = 1;
         
 		// Every so often trigger the Ultrasonic sensor
 		HCSR04_Trigger();
@@ -122,8 +129,11 @@ void interrupt ISR(void)
 		INTCONbits.TMR0IF = 0;
     }
     
-    // TIMER 1 - External Oscillator
+    // TIMER 1
     if (PIR1bits.TMR1IF && PIE1bits.TMR1IE) {    
+
+        // Turn off test LED when timer triggered
+        PIN_LED_0 = 0;
         
 		// Increment counter if global echo bit is set
 		if(state.echoHit == false) {
