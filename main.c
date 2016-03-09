@@ -40,6 +40,11 @@ void init(void)
     
     // Enable IOC
     INTCONbits.IOCIE = 1;
+    
+    // Enable A2 rising edge
+    IOCAPbits.IOCAP2 = 1;
+    // Enable A2 falling edge
+    IOCANbits.IOCAN2 = 1;
 
     // Enable each timer
     INTCONbits.TMR0IE = 1;
@@ -66,8 +71,9 @@ void init(void)
     // the value of the external oscillator)
     T1CON = 0b01110001; 
     
-    TRISB = 0b11110000; // Input for RB5
-    TRISC = 0b00000000; // Outputs for RC2 and RC6
+    TRISA = 0b11111111; // Inputs
+    TRISB = 0b11110000; // Inputs
+    TRISC = 0b00000000; // Outputs
 
     // Disable analogue inputs. This should set all pins to digital.
     ANSELBbits.ANSB4 = 0;
@@ -99,10 +105,9 @@ void interrupt ISR(void)
     static uint_fast16_t counter = 0;
 	
     // IOC triggered
-    if(INTCONbits.IOCIF && INTCONbits.IOCIE)
+    if(IOCAFbits.IOCAF2)
     {
-        
-
+        PIN_LED_0 = 1;
         
 		// if yellow button hit
 		if(BTN_SET_YELLOW == IO_HIGH) {
@@ -124,14 +129,16 @@ void interrupt ISR(void)
             state.finishedRead = true;
         }
 
-		INTCONbits.IOCIF = 0;
+		//INTCONbits.IOCIF = 0; // IOCIF listed as read only
+        
+        // Clear all individual IOC bits to continue
+        IOCAFbits.IOCAF2 = 0;
 	}
     
     // TIMER 0
     if (INTCONbits.TMR0IF && INTCONbits.TMR0IE) {
         
-        // Turn on test LED when timer triggered
-        PIN_LED_0 = 1;
+        PIN_LED_0 = 0;
         
 		// Every so often trigger the Ultrasonic sensor
 		HCSR04_Trigger();
@@ -142,9 +149,6 @@ void interrupt ISR(void)
     
     // TIMER 1
     if (PIR1bits.TMR1IF && PIE1bits.TMR1IE) {    
-
-        // Turn off test LED when timer triggered
-        PIN_LED_0 = 0;
         
 		// Increment counter if global echo bit is set
 		if(state.echoHit == false) {
