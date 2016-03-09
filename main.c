@@ -27,9 +27,11 @@
 typedef volatile struct Global_State {
     bool echoHit;
     bool finishedRead;
+    bool setYellow;
+    bool setRed;
 } State;
 
-static State state = { false, false }; 
+static State state = { false, false, false, false }; 
 static LedState led_state = { STATE_RED, 0 };
 
 void init(void) 
@@ -90,11 +92,10 @@ void init(void)
 void main()
 {
     init();
+    db_init();
     
     // Drive it low to turn LED's on.
     PIN_LED_OE = IO_LOW;
-    
-    PIN_LED_0 = 1;
         
     while(1) {
     }
@@ -103,7 +104,8 @@ void main()
 void interrupt ISR(void) 
 {
     static uint_fast16_t counter = 0;
-	
+    static uint_fast8_t i = 0;
+
     // IOC triggered
     if(IOCAFbits.IOCAF2)
     {
@@ -111,13 +113,11 @@ void interrupt ISR(void)
         
 		// if yellow button hit
 		if(BTN_SET_YELLOW == IO_HIGH) {
-            //TODO
-            // Can we simply set a flag here so the next falling edge of the 
-            // echo pin sets the YELLOW value to be counter?
+            state.setYellow = true;
         }
 		// if red button hit
 		else if(BTN_SET_RED == IO_HIGH) {
-            //TODO
+            state.setRed = true;
         }
         // if echo pin input changed
         else if(PIN_US_ECHO == IO_HIGH && state.echoHit == false) {
@@ -157,7 +157,23 @@ void interrupt ISR(void)
 			// display using the count
             led_state = display_LED(counter, led_state.ledState, 
                                     led_state.transitionCounter);
-
+            
+            if(state.setRed) {
+                db.serialised[0] = counter;
+                db_write(0);
+                db_save();
+                state.setRed = false;
+                // Pause here to ensure saves have a gap between them?
+                // This will however, prevent the Led_state from changing
+            }
+            
+            if(state.setYellow) {
+                db.serialised[0] = counter;
+                db_write(1);
+                db_save();
+                state.setYellow = false;
+            }
+            
             // Reset
             counter = 0;
             state.echoHit = false;
@@ -165,44 +181,5 @@ void interrupt ISR(void)
 		}
 		
         PIR1bits.TMR1IF = 0;    
-    }
-}
-
-void db_test() {
-    
-    unsigned int a = 0;
-    unsigned int i;
-    db_init();
-
-    for(i=0;i<5;i++)
-    {
-        a = ~a;
-        db.serialised[i] = a;
-    }
-    
-    db_write(i);
-    db_save();
-    __delay_ms(1000);
-        
-    if(db_read(0)) {
-        for(i=0;i<5;i++)
-        {
-            PIN_LED_0 = db.serialised[i];
-            __delay_ms(1000);
-        }
-    }
-}
-
-void db_test_read_only() {
-    
-    unsigned int i;
-    db_init();
- 
-    if(db_read(0)) {
-        for(i=0;i<5;i++)
-        {
-            PIN_LED_0 = db.serialised[i];
-            __delay_ms(1000);
-        }
     }
 }
