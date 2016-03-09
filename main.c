@@ -159,8 +159,7 @@ void interrupt ISR(void)
                                     led_state.transitionCounter);
             
             if(state.setRed) {
-                db.serialised[0] = counter;
-                db_write(0);
+                db.sdb.rangePoint1 = counter;
                 db_save();
                 state.setRed = false;
                 // Pause here to ensure saves have a gap between them?
@@ -168,8 +167,7 @@ void interrupt ISR(void)
             }
             
             if(state.setYellow) {
-                db.serialised[0] = counter;
-                db_write(1);
+                db.sdb.rangePoint2 = counter;
                 db_save();
                 state.setYellow = false;
             }
