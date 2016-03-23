@@ -19,15 +19,15 @@
 #define PIN_US_ECHO             RA2
 
 // TLC5926 Pins
-#define PIN_LED_SDI             RC4
-#define PIN_LED_CLK             RC3
-#define PIN_LED_LE              RC6
-#define PIN_LED_OE              RC7
+#define PIN_LED_SDI             RC7
+#define PIN_LED_CLK             RC6
+#define PIN_LED_LE              RC3
+#define PIN_LED_OE              RC4
 
 // LED Array colour bitmap values
-#define LIGHT_RED 0x2000
-#define LIGHT_YELLOW 0x0800
-#define LIGHT_GREEN 0x0200
+#define LIGHT_RED 0x001F
+#define LIGHT_YELLOW 0x7C00
+#define LIGHT_GREEN 0x03E0
 #define LIGHT_OFF 0x0000
 
 #define LIGHT_THRESH_OFFSET 2
