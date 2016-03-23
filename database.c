@@ -90,8 +90,8 @@ void db_save(void) {
  * Reset the database with defaults.
  */
 void db_reset(void) {
-    db.sdb.rangePoint1 = DEFAULT_RANGE_POINT_1;
-    db.sdb.rangePoint2 = DEFAULT_RANGE_POINT_2;
+    db.sdb.rangePointRed = DEFAULT_RANGE_POINT_1;
+    db.sdb.rangePointYellow = DEFAULT_RANGE_POINT_2;
     
     db_save();
 }

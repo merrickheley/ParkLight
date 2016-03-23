@@ -7,8 +7,8 @@
 #include <stdint.h>
 #include <stddef.h>
 
-#define DEFAULT_RANGE_POINT_1       50
-#define DEFAULT_RANGE_POINT_2       100
+#define DEFAULT_RANGE_POINT_1       5
+#define DEFAULT_RANGE_POINT_2       20
 
 #define DATABASE_MAX_SIZE   256
 #define DATABASE_LENGTH     6
@@ -24,8 +24,8 @@ typedef union
     struct
     {
         uint16_t checksum;
-        uint16_t rangePoint1;
-        uint16_t rangePoint2;
+        uint16_t rangePointRed;
+        uint16_t rangePointYellow;
     } sdb;
     uint8_t serialised[DATABASE_LENGTH];
 } database;

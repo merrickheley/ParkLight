@@ -34,6 +34,9 @@ typedef volatile struct Global_State {
 static State state = { false, false, false, false }; 
 static LedState led_state = { STATE_RED, 0 };
 
+static int thresh_red;
+static int thresh_yellow;
+
 void init(void) 
 {
     INTCONbits.GIE = 1; // Enable global interrupts
@@ -90,6 +93,10 @@ void init(void)
     PIN_LED_OE = IO_LOW;
     
     db_init(); // Initialise the database so that it is populated
+    
+    thresh_red = db.sdb.rangePointRed;
+    thresh_yellow = db.sdb.rangePointYellow;
+    
     TLC5926_init();
 }
 
@@ -151,7 +158,7 @@ void interrupt ISR(void)
     if (PIR1bits.TMR1IF && PIE1bits.TMR1IE) {    
         
 		// Increment counter if global echo bit is set
-		if(state.echoHit == false) {
+		if(state.echoHit == true) {
 			counter++;
 		} else if(state.finishedRead == true){
 			// display using the count
@@ -159,7 +166,7 @@ void interrupt ISR(void)
                                     led_state.transitionCounter);
             
             if(state.setRed) {
-                db.sdb.rangePoint1 = counter;
+                db.sdb.rangePointRed = counter;
                 db_save();
                 state.setRed = false;
                 // Pause here to ensure saves have a gap between them?
@@ -167,7 +174,7 @@ void interrupt ISR(void)
             }
             
             if(state.setYellow) {
-                db.sdb.rangePoint2 = counter;
+                db.sdb.rangePointYellow = counter;
                 db_save();
                 state.setYellow = false;
             }
