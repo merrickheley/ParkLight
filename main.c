@@ -36,31 +36,31 @@ static LedState led_state = { STATE_RED, 0 };
 
 void init(void) 
 {
-    INTCONbits.GIE = 1; // Enable global interrupts
-    INTCONbits.PEIE = 1; // Enable peripheral interrupts
-    INTCONbits.T0IE = 1;
-    
-    // Enable IOC
-    INTCONbits.IOCIE = 1;
-    
-    // Enable A2 rising edge
-    IOCAPbits.IOCAP2 = 1;
-    // Enable A2 falling edge
-    IOCANbits.IOCAN2 = 1;
-
-    // Enable each timer
-    INTCONbits.TMR0IE = 1;
-    PIE1bits.TMR1IE = 1; 
-    
-    //PIE1bits.TMR2IE = 1;
-    //PIE3bits.TMR4IE = 1;
-    //PIE3bits.TMR6IE = 1;
-    
-    // Weak pull-up enabled on ECHO pin
-    WPUAbits.WPUA2 = 1;
-    
-    // Set timer0 prescaler to 1:256
-    OPTION_REG = 0b00000111;
+//    INTCONbits.GIE = 1; // Enable global interrupts
+//    INTCONbits.PEIE = 1; // Enable peripheral interrupts
+//    INTCONbits.T0IE = 1;
+//    
+//    // Enable IOC
+//    INTCONbits.IOCIE = 1;
+//    
+//    // Enable A2 rising edge
+//    IOCAPbits.IOCAP2 = 1;
+//    // Enable A2 falling edge
+//    IOCANbits.IOCAN2 = 1;
+//
+//    // Enable each timer
+//    INTCONbits.TMR0IE = 1;
+//    PIE1bits.TMR1IE = 1; 
+//    
+//    //PIE1bits.TMR2IE = 1;
+//    //PIE3bits.TMR4IE = 1;
+//    //PIE3bits.TMR6IE = 1;
+//    
+//    // Weak pull-up enabled on ECHO pin
+//    WPUAbits.WPUA2 = 1;
+//    
+//    // Set timer0 prescaler to 1:256
+//    OPTION_REG = 0b00000111;
     
     // bits 7-6 -> 01 use system clock FOSC, 00 use FOSC/4
     // bit 5-4 T1CKPS<1:0>: Timer1 Input Clock Prescale Select bits
@@ -102,6 +102,12 @@ void main()
     init();
         
     while(1) {
+        TLC5926_SetLights(LIGHT_RED);
+        __delay_ms(1000);
+        TLC5926_SetLights(LIGHT_YELLOW);
+        __delay_ms(1000);
+        TLC5926_SetLights(LIGHT_GREEN);
+        __delay_ms(1000);
     }
 }
 
