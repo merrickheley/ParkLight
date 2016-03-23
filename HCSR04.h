@@ -5,5 +5,4 @@
 
 void HCSR04_Trigger(void);
 
-
 #endif	/* HCSR04_H */

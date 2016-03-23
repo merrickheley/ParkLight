@@ -85,17 +85,17 @@ void init(void)
     
     // Set outputs to low initially
     PORTC = 0x00; 
-
+    
+    // Drive it low to turn LED's on.
+    PIN_LED_OE = IO_LOW;
+    
+    db_init(); // Initialise the database so that it is populated
     TLC5926_init();
 }
 
 void main()
 {
     init();
-    db_init();
-    
-    // Drive it low to turn LED's on.
-    PIN_LED_OE = IO_LOW;
         
     while(1) {
     }

@@ -30,8 +30,6 @@
 #define LIGHT_GREEN 0x0200
 #define LIGHT_OFF 0x0000
 
-#define LIGHT_THRESH_GREEN  20
-#define LIGHT_THRESH_YELLOW 5
 #define LIGHT_THRESH_OFFSET 2
 
 // Button pins for EEPROM
