@@ -15,6 +15,7 @@ void TLC5926_SetLights(uint16_t bitmap);
 LedState display_LED(uint_fast16_t distanceCounter, uint8_t currentState, 
         uint8_t transitionCounter);
 
-
+static int thresh_red;
+static int thresh_yellow;
 
 #endif	/* TLC5926_H */

@@ -34,9 +34,6 @@ typedef volatile struct Global_State {
 static State state = { false, false, false, false }; 
 static LedState led_state = { STATE_RED, 0 };
 
-static int thresh_red;
-static int thresh_yellow;
-
 void init(void) 
 {
     INTCONbits.GIE = 1; // Enable global interrupts
