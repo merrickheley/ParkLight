@@ -31,36 +31,47 @@ typedef volatile struct Global_State {
     bool setRed;
 } State;
 
-static State state = { false, false, false, false }; 
-static LedState led_state = { STATE_RED, 0 };
+typedef volatile struct Led_State {
+    uint8_t ledState; // Red by default?
+    uint8_t transitionCounter;
+    uint8_t counter;
+} LedState;
+
+volatile State state = { false, false, false, false }; 
+volatile LedState led_state = { STATE_RED, 0 , 0};
+
+static int thresh_red;
+static int thresh_yellow;
+
+void display_LED(void);
 
 void init(void) 
 {
-//    INTCONbits.GIE = 1; // Enable global interrupts
-//    INTCONbits.PEIE = 1; // Enable peripheral interrupts
-//    INTCONbits.T0IE = 1;
-//    
-//    // Enable IOC
-//    INTCONbits.IOCIE = 1;
-//    
-//    // Enable A2 rising edge
-//    IOCAPbits.IOCAP2 = 1;
-//    // Enable A2 falling edge
-//    IOCANbits.IOCAN2 = 1;
-//
-//    // Enable each timer
-//    INTCONbits.TMR0IE = 1;
-//    PIE1bits.TMR1IE = 1; 
-//    
-//    //PIE1bits.TMR2IE = 1;
-//    //PIE3bits.TMR4IE = 1;
-//    //PIE3bits.TMR6IE = 1;
-//    
-//    // Weak pull-up enabled on ECHO pin
-//    WPUAbits.WPUA2 = 1;
-//    
-//    // Set timer0 prescaler to 1:256
-//    OPTION_REG = 0b00000111;
+    INTCONbits.GIE = 1; // Enable global interrupts
+    INTCONbits.PEIE = 1; // Enable peripheral interrupts
+    INTCONbits.T0IE = 1;
+    
+    // Enable IOC
+    INTCONbits.IOCIE = 1;
+    
+    // Enable A2 rising edge
+    IOCAPbits.IOCAP2 = 1;
+    // Enable A2 falling edge
+    IOCANbits.IOCAN2 = 1;
+
+    // Enable each timer
+    INTCONbits.TMR0IE = 1;
+    PIE1bits.TMR1IE = 1; 
+    
+    //PIE1bits.TMR2IE = 1;
+    //PIE3bits.TMR4IE = 1;
+    //PIE3bits.TMR6IE = 1;
+    
+    // Weak pull-up enabled on ECHO pin
+    WPUAbits.WPUA2 = 1;
+    
+    // Set timer0 prescaler to 1:256
+    OPTION_REG = 0b00000111;
     
     // bits 7-6 -> 01 use system clock FOSC, 00 use FOSC/4
     // bit 5-4 T1CKPS<1:0>: Timer1 Input Clock Prescale Select bits
@@ -104,19 +115,13 @@ void main()
         
     while(1) {
         TLC5926_SetLights(LIGHT_RED);
-        __delay_ms(1000);
-        TLC5926_SetLights(LIGHT_YELLOW);
-        __delay_ms(1000);
-        TLC5926_SetLights(LIGHT_GREEN);
+        display_LED();
         __delay_ms(1000);
     }
 }
 
 void interrupt ISR(void) 
 {
-    static uint_fast16_t counter = 0;
-    static uint_fast8_t i = 0;
-
     // IOC triggered
     if(IOCAFbits.IOCAF2)
     {
@@ -152,6 +157,7 @@ void interrupt ISR(void)
         PIN_LED_0 = 0;
         
 		// Every so often trigger the Ultrasonic sensor
+        // Change this so that a state is set to trigger the HCSR04 instead of having delays in the ISR
 		HCSR04_Trigger();
 		// And leave the IOC_ISR to handle triggering the counting/stop counting
 		
@@ -163,32 +169,76 @@ void interrupt ISR(void)
         
 		// Increment counter if global echo bit is set
 		if(state.echoHit == true) {
-			counter++;
+			led_state.counter += 1;
 		} else if(state.finishedRead == true){
-			// display using the count
-            led_state = display_LED(counter, led_state.ledState, 
-                                    led_state.transitionCounter);
             
             if(state.setRed) {
-                db.sdb.rangePointRed = counter;
+                db.sdb.rangePointRed = led_state.counter;
                 db_save();
                 state.setRed = false;
-                // Pause here to ensure saves have a gap between them?
-                // This will however, prevent the Led_state from changing
             }
             
             if(state.setYellow) {
-                db.sdb.rangePointYellow = counter;
+                db.sdb.rangePointYellow = led_state.counter;
                 db_save();
                 state.setYellow = false;
             }
             
             // Reset
-            counter = 0;
+            led_state.counter = 0;
             state.echoHit = false;
             state.finishedRead = false;
 		}
 		
         PIR1bits.TMR1IF = 0;    
     }
+}
+
+void display_LED() {
+    
+    uint8_t distanceCounter = led_state.counter;
+    
+    LedState resultState = { STATE_RED, 0 };
+    resultState.ledState = led_state.ledState;
+    resultState.transitionCounter = led_state.transitionCounter;
+    
+    if (resultState.ledState == STATE_GREEN) {
+        TLC5926_SetLights(LIGHT_GREEN);
+
+        if (distanceCounter < thresh_yellow) {
+            resultState.transitionCounter = 0;
+            resultState.ledState = STATE_YELLOW;
+            TLC5926_SetLights(LIGHT_YELLOW);
+        }
+    } else if (resultState.ledState == STATE_YELLOW) {          
+        if (distanceCounter < thresh_red) {
+            resultState.transitionCounter = 0;
+            resultState.ledState = STATE_RED;
+            TLC5926_SetLights(LIGHT_RED);
+        }
+        else if (distanceCounter > thresh_yellow + 20) {
+            resultState.transitionCounter++;
+            if (resultState.transitionCounter == 10) {
+                resultState.transitionCounter = 0;
+                resultState.ledState = STATE_GREEN;
+                TLC5926_SetLights(LIGHT_GREEN);
+            }                  
+        } else {
+            resultState.transitionCounter = 0;
+        }
+    } else if (resultState.ledState == STATE_RED) {          
+        if (distanceCounter > thresh_red + LIGHT_THRESH_OFFSET) {
+            resultState.ledState = STATE_YELLOW;
+            resultState.transitionCounter = 0;
+            TLC5926_SetLights(LIGHT_YELLOW);
+        } else {
+            resultState.transitionCounter++;
+            if(resultState.transitionCounter > 50) { // Approx five seconds of red
+                TLC5926_SetLights(LIGHT_OFF);
+                // Break the loop, go into a power saving mode
+            }
+        }
+    }
+   
+    led_state = resultState;
 }
