@@ -15,7 +15,7 @@
 #define PIN_LED_0               RC6
 
 // HCSR04 Pins
-#define PIN_US_TRIGGER          RC0
+#define PIN_US_TRIGGER          RC2
 #define PIN_US_ECHO             RA2
 
 // TLC5926 Pins
