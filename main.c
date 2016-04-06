@@ -29,6 +29,7 @@ typedef volatile struct Global_State {
     bool finishedRead;
     bool setYellow;
     bool setRed;
+    bool triggerSensor;
 } State;
 
 typedef volatile struct Led_State {
@@ -114,8 +115,14 @@ void main()
     init();
         
     while(1) {
-        TLC5926_SetLights(LIGHT_RED);
+        //TLC5926_SetLights(LIGHT_RED);
         display_LED();
+        
+        //if(state.triggerSensor) {
+            HCSR04_Trigger();
+        //    state.triggerSensor = false;
+        //}
+
         __delay_ms(1000);
     }
 }
@@ -154,12 +161,8 @@ void interrupt ISR(void)
     // TIMER 0
     if (INTCONbits.TMR0IF && INTCONbits.TMR0IE) {
         
-        PIN_LED_0 = 0;
-        
 		// Every so often trigger the Ultrasonic sensor
-        // Change this so that a state is set to trigger the HCSR04 instead of having delays in the ISR
-		HCSR04_Trigger();
-		// And leave the IOC_ISR to handle triggering the counting/stop counting
+        state.triggerSensor = true;
 		
 		INTCONbits.TMR0IF = 0;
     }
