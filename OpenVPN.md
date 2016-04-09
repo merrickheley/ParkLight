@@ -27,14 +27,22 @@
 * Edit _DEFAULT_FORWARD_POLICY="DROP"_ to _DEFAULT_FORWARD_POLICY="ACCEPT"_
 * vim /etc/ufw/before.rules
 * Add the following after the rules.before section:
-> # START OPENVPN RULES
-> # NAT table rules
-> *nat
+> \# START OPENVPN RULES
+>
+> \# NAT table rules
+>
+> \*nat
+>
 > :POSTROUTING ACCEPT [0:0] 
-> # Allow traffic from OpenVPN client to eth0
+>
+> \# Allow traffic from OpenVPN client to eth0
+>
 > -A POSTROUTING -s 10.8.0.0/8 -o eth0 -j MASQUERADE
+>
 > COMMIT
-> # END OPENVPN RULES
+>
+> \# END OPENVPN RULES
+
 * ufw enable - Answer y
 * ufw status
 
@@ -45,11 +53,17 @@
 * vim /etc/openvpn/easy-rsa/vars
 * Edit the following as necessary (these are the default parameters and can still be changed on build):
 > export KEY_COUNTRY="US"
+>
 > export KEY_PROVINCE="TX"
+>
 > export KEY_CITY="Dallas"
+>
 > export KEY_ORG="My Company Name"
+>
 > export KEY_EMAIL="sammy@example.com"
+>
 > export KEY_OU="MYOrganizationalUnit"
+
 * Also ensure _export KEY_NAME="server"_ exists in the file
 * openssl dhparam -out /etc/openvpn/dh2048.pem 2048
 
