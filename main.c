@@ -72,7 +72,7 @@ void init(void)
     WPUAbits.WPUA2 = 1;
     
     // Set timer0 prescaler to 1:256
-    OPTION_REG = 0b00000111;
+    OPTION_REG = 0b00000000;
     
     // bits 7-6 -> 01 use system clock FOSC, 00 use FOSC/4
     // bit 5-4 T1CKPS<1:0>: Timer1 Input Clock Prescale Select bits
@@ -81,9 +81,9 @@ void init(void)
     //      01 = 1:2 Prescale value
     //      00 = 1:1 Prescale value
     
-    // Set timer 1 prescaler to 1:8 from FOSC (which should be 
+    // Set timer 1 prescaler to 1:1 from FOSC (which should be 
     // the value of the external oscillator)
-    T1CON = 0b01110001; 
+    T1CON = 0b01000001; 
     
     TRISA = 0b11111111; // Inputs
     TRISB = 0b11110000; // Inputs

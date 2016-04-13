@@ -1,7 +1,7 @@
 #ifndef CONFIG_H
 #define	CONFIG_H
 
-#pragma config FOSC = INTOSC    // Oscillator Selection (XT : Medium power crystal on OSC1/OSC2)
+#pragma config FOSC = XT    // Oscillator Selection (XT : Medium power crystal on OSC1/OSC2)
 #pragma config WDTE = OFF       // Watchdog Timer Enable (WDT disabled)    
 #pragma config PWRTE = OFF      // Power-up Timer Enable (PWRT disabled)    
 #pragma config MCLRE = OFF      // MCLR Pin Function Select (MCLR/VPP pin function is digital input)    
