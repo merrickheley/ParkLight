@@ -34,17 +34,17 @@ typedef volatile struct Global_State {
 
 typedef volatile struct Led_State {
     uint8_t ledState; // Red by default?
-    uint8_t transitionCounter;
     uint8_t counter;
 } LedState;
 
 volatile State state = { false, false, false, false }; 
-volatile LedState led_state = { STATE_RED, 0 , 0 };
+volatile LedState led_state = { STATE_RED, 0 };
 
-uint8_t thresh_red;
-uint8_t thresh_yellow;
+volatile uint8_t thresh_red;
+volatile uint8_t thresh_yellow;
 
-void display_LED(uint8_t counter);
+uint8_t display_LED(uint8_t counter, uint8_t state);
+void display_All_Blink(void);
 
 void init(void) 
 {
@@ -55,10 +55,14 @@ void init(void)
     // Enable IOC
     INTCONbits.IOCIE = 1;
     
-    // Enable A2 rising edge
+    // Enable RA2 rising edge
     IOCAPbits.IOCAP2 = 1;
-    // Enable A2 falling edge
+    // Enable RA2 falling edge
     IOCANbits.IOCAN2 = 1;
+    
+    // Enable RB5 and RB4 rising edge
+    IOCBNbits.IOCBN4 = 1;
+    IOCBNbits.IOCBN5 = 1;
 
     // Enable each timer
     INTCONbits.TMR0IE = 1;
@@ -113,14 +117,16 @@ void init(void)
 void main()
 {
     init();
-      
-    uint8_t flipBitch = 0;
+
     TLC5926_SetLights(LIGHT_RED);
     
     while(1) {
-        display_LED(led_state.counter);
+        led_state.ledState = display_LED(led_state.counter, led_state.ledState);
         HCSR04_Trigger();
-        __delay_ms(200);
+        __delay_ms(250);
+        if(state.setRed || state.setYellow) {
+            display_All_Blink();
+        }
     }
 }
 
@@ -130,17 +136,7 @@ void interrupt ISR(void)
     if(IOCAFbits.IOCAF2)
     {
         PIN_LED_0 = 1;
-        
-        // Debounce these button presses
-		// if yellow button hit
-		if(BTN_SET_YELLOW == IO_HIGH) {
-            state.setYellow = true;
-        }
-		// if red button hit
-		else if(BTN_SET_RED == IO_HIGH) {
-            state.setRed = true;
-        }
-        
+
         // if echo pin input changed
         if(PIN_US_ECHO == IO_HIGH && state.echoHit == false) {
             // rising edge
@@ -160,23 +156,41 @@ void interrupt ISR(void)
         IOCAFbits.IOCAF2 = 0;
 	}
     
+    if(IOCBFbits.IOCBF4) {
+        // Debounce these button presses
+		// if yellow button hit
+		if(BTN_SET_YELLOW == IO_HIGH) {
+            state.setYellow = true;
+        }
+        IOCBFbits.IOCBF4 = 0;
+    }
+    
+    if(IOCBFbits.IOCBF5) {
+        // if red button hit
+		if(BTN_SET_RED == IO_HIGH) {
+            state.setRed = true;
+        }
+        IOCBFbits.IOCBF5 = 0;
+    }
+    
     if(INTCONbits.TMR0IF && INTCONbits.TMR0IE) {
         
 		// Increment counter if global echo bit is set
 		if(state.echoHit == true) {
 			led_state.counter += 1;
-            
 		} else if(state.finishedRead == true){
 
             if(state.setRed) {
                 db.sdb.rangePointRed = led_state.counter;
                 db_save();
+                thresh_red = led_state.counter;
                 state.setRed = false;
             }
             
             if(state.setYellow) {
                 db.sdb.rangePointYellow = led_state.counter;
                 db_save();
+                thresh_yellow = led_state.counter;
                 state.setYellow = false;
             }
             
@@ -195,56 +209,44 @@ void interrupt ISR(void)
     }
 }
 
-void display_LED(uint8_t counter) {
+uint8_t display_LED(uint8_t counter, uint8_t state) 
+{
+
+    if (state == STATE_GREEN) {
+        if (counter < thresh_yellow) {
+            state = STATE_YELLOW;
+            TLC5926_SetLights(LIGHT_YELLOW);
+        }
+    } else if (state == STATE_YELLOW) {          
+        if (counter < thresh_red) {
+            state = STATE_RED;
+            TLC5926_SetLights(LIGHT_RED);
+        }
+        else if (counter > thresh_yellow + 5) {
+            state = STATE_GREEN;
+            TLC5926_SetLights(LIGHT_GREEN);                
+        }
+    } else if (state == STATE_RED) {          
+        if (counter > (thresh_red + LIGHT_THRESH_OFFSET)) {
+            state = STATE_YELLOW;
+            TLC5926_SetLights(LIGHT_YELLOW);
+        } 
+        // Reimplement the turning off after red for a while functionality
+        //else {
+
+            //if(transition > 5) { // Approx five seconds of red
+            //    TLC5926_SetLights(LIGHT_OFF);
+                // Break the loop, go into a power saving mode
+            //}
+        //}
+    }
+
+    return state;
+}
+
+void display_All_Blink() {
     
-    if (counter < 10)
-        TLC5926_SetLights(LIGHT_RED);
-    else if (counter < 20)
-        TLC5926_SetLights(LIGHT_YELLOW);
-    else
-        TLC5926_SetLights(LIGHT_GREEN);
-    
-//    LedState resultState = { STATE_RED, 0 };
-//    resultState.ledState = led_state.ledState;
-//    resultState.transitionCounter = led_state.transitionCounter;
-//    
-//    if (resultState.ledState == STATE_GREEN) {
-//        TLC5926_SetLights(LIGHT_GREEN);
-//
-//        if (counter < thresh_yellow) {
-//            resultState.transitionCounter = 0;
-//            resultState.ledState = STATE_YELLOW;
-//            TLC5926_SetLights(LIGHT_YELLOW);
-//        }
-//    } else if (resultState.ledState == STATE_YELLOW) {          
-//        if (counter < thresh_red) {
-//            resultState.transitionCounter = 0;
-//            resultState.ledState = STATE_RED;
-//            TLC5926_SetLights(LIGHT_RED);
-//        }
-//        else if (counter > thresh_yellow + 1) {
-//            resultState.transitionCounter++;
-//            if (resultState.transitionCounter == 10) {
-//                resultState.transitionCounter = 0;
-//                resultState.ledState = STATE_GREEN;
-//                TLC5926_SetLights(LIGHT_GREEN);
-//            }                  
-//        } else {
-//            resultState.transitionCounter = 0;
-//        }
-//    } else if (resultState.ledState == STATE_RED) {          
-//        if (counter > thresh_red + LIGHT_THRESH_OFFSET) {
-//            resultState.ledState = STATE_YELLOW;
-//            resultState.transitionCounter = 0;
-//            TLC5926_SetLights(LIGHT_YELLOW);
-//        } else {
-//            resultState.transitionCounter++;
-//            if(resultState.transitionCounter > 50) { // Approx five seconds of red
-//                TLC5926_SetLights(LIGHT_OFF);
-//                // Break the loop, go into a power saving mode
-//            }
-//        }
-//    }
-//   
-//    led_state = resultState;
+    TLC5926_SetLights(0xFFFF);
+    __delay_ms(200);
+    TLC5926_SetLights(0x0000);
 }
