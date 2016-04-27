@@ -61,9 +61,9 @@ void init(void)
     // Enable RA2 falling edge
     IOCANbits.IOCAN2 = 1;
     
-    // Enable RB5 and RB4 rising edge
-    IOCBPbits.IOCBP4 = 1;
-    IOCBPbits.IOCBP5 = 1;
+    // Enable RB5 and RB4 falling edge
+    IOCBNbits.IOCBN4 = 1;
+    IOCBNbits.IOCBN5 = 1;
 
     // Enable each timer
     INTCONbits.TMR0IE = 1;
