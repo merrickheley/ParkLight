@@ -29,7 +29,6 @@ typedef struct Global_State {
     bool finishedRead;
     bool setYellow;
     bool setRed;
-    bool triggerSensor;
 } State;
 
 typedef struct Led_State {
@@ -38,7 +37,7 @@ typedef struct Led_State {
     uint8_t turnOffCounter;
 } LedState;
 
-volatile State state = { false, false, false, false }; 
+volatile State state = { 0 }; 
 volatile LedState led_state = { STATE_RED, 0, 0 };
 
 volatile uint8_t thresh_red;
@@ -69,8 +68,8 @@ void init(void)
     IOCANbits.IOCAN2 = 1;
     
     // Enable RB5 and RB4 rising edge
-    IOCBPbits.IOCBP4 = 1;
-    IOCBPbits.IOCBP5 = 1;
+    IOCBNbits.IOCBN4 = 1;
+    IOCBNbits.IOCBN5 = 1;
 
     // Enable each timer
     INTCONbits.TMR0IE = 1;
@@ -209,7 +208,6 @@ void interrupt ISR(void)
     }
     
     // TIMER 1
-    // Much slower than Timer 0/System clock
     if (PIR1bits.TMR1IF && PIE1bits.TMR1IE) {    
         
         // If echoHit is true, then something has been read
@@ -252,8 +250,11 @@ LedState display_LED(LedState state)
             if(state.turnOffCounter > 5) { // Approx five seconds of red
                 // Turn the lights off
                 TLC5926_SetLights(LIGHT_OFF);
-                // Result power saving mode
-                power_saving_mode = true;
+                // Set power saving mode
+                OSCCONbits.SCS = 0b10; // Use internal oscillator regardless of configuration bits
+                // Set power saving mode on by default
+                power_saving_mode = true; 
+                set_Power_Saving_Mode(power_saving_mode);
             }
         }
     }
