@@ -42,8 +42,7 @@
 #define STATE_RED 2
 
 // MACRO for delays dependent on power_saving_mode
-#define DELAY_1000MS(X) (X ? __delay_ms(1000/32) : __delay_ms(1000))
-#define DELAY_200MS(X) (X ? __delay_ms(200/32) : __delay_ms(200))
-#define DELAY_15US(X) (X ? __delay_us(15/32) : __delay_us(15))
+#define DELAY_MS(X,PWR_SAVING_MODE) (PWR_SAVING_MODE ? __delay_ms(X/32) : __delay_ms(X))
+#define DELAY_US(X,PWR_SAVING_MODE) (PWR_SAVING_MODE ? __delay_us(X/32) : __delay_us(X))
 
 #endif	/* CONSTANTS_H */

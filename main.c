@@ -131,11 +131,11 @@ void main()
     while(1) {
         if(power_saving_mode) {
             HCSR04_Trigger();
-            DELAY_1000MS(power_saving_mode);
+            DELAY_MS(1000,power_saving_mode);
         } else {
             led_state = display_LED(led_state);
             HCSR04_Trigger();
-            DELAY_200MS(power_saving_mode);
+            DELAY_MS(200,power_saving_mode);
         }
 
         if(state.setRed || state.setYellow) {
@@ -264,6 +264,6 @@ LedState display_LED(LedState state)
 void display_All_Blink() {
     
     TLC5926_SetLights(0xFFFF);
-    DELAY_200MS(power_saving_mode);
+    DELAY_MS(200,power_saving_mode);
     TLC5926_SetLights(0x0000);
 }

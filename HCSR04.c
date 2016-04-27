@@ -36,7 +36,7 @@ static bool power_saving_mode = true;
 void HCSR04_Trigger(void) {
     //Send at least a 10uS pulse on trigger line
     PIN_US_TRIGGER = 1; //high
-    DELAY_15US(power_saving_mode);
+    DELAY_US(15,power_saving_mode);
     PIN_US_TRIGGER = 0; //low
 }
 
