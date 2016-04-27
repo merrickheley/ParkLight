@@ -26,26 +26,22 @@
 
 typedef struct Global_State {
     bool echoHit;
-    bool finishedRead;
     bool setYellow;
     bool setRed;
-    bool triggerSensor;
+    uint8_t counter;
+    uint8_t lastCounter;
 } State;
 
 typedef struct Led_State {
-    uint8_t ledState; // Red by default?
-    uint8_t counter;
-    uint8_t turnOffCounter;
+    uint8_t state; // Red by default
+    uint8_t turnoffCounter; // How many consecutive instances of a colour
 } LedState;
 
-volatile State state = { false, false, false, false }; 
-volatile LedState led_state = { STATE_RED, 0, 0 };
+volatile State state = { 0 }; 
+LedState led_state = { 0 };
 
-volatile uint8_t thresh_red;
-volatile uint8_t thresh_yellow;
-
-LedState display_LED(LedState state);
-void display_All_Blink(void);
+void display_LED(LedState *ledState);
+void blink_light(uint16_t lightColour);
 
 void init(void) 
 {
@@ -106,9 +102,6 @@ void init(void)
     // Initialise the database so that it is populated
     db_init(); 
     
-    thresh_red = db.sdb.rangePointRed;
-    thresh_yellow = db.sdb.rangePointYellow;
-    
     TLC5926_init();
     
     // Drive it low to turn LED's on.
@@ -117,126 +110,137 @@ void init(void)
 
 void main()
 {
+    uint8_t i = 0;
     init();
 
-    TLC5926_SetLights(LIGHT_RED);
+    TLC5926_SetLights(LIGHT_OFF);
     
-    while(1) {
-        led_state = display_LED(led_state);
-        HCSR04_Trigger();
-        __delay_ms(250);
-        if(state.setRed || state.setYellow) {
-            display_All_Blink();
+    while(1) {        
+        if (state.setRed) {
+            //db.sdb.rangePointRed = state.lastCounter;
+            //db_save();
+            blink_light(LIGHT_RED);
+            state.setRed = false;
         }
+
+        if (state.setYellow) {
+            //db.sdb.rangePointYellow = state.lastCounter;
+            //db_save();
+            blink_light(LIGHT_YELLOW);
+            state.setYellow = false;
+        }
+        
+        //display_LED(&led_state);
+        //HCSR04_Trigger();
+
+        __delay_ms(250);
     }
 }
 
 void interrupt ISR(void) 
 {
-    // IOC triggered
-    if(IOCAFbits.IOCAF2)
+    // Edge detected on echo pin
+    if (IOCAFbits.IOCAF2)
     {
         PIN_LED_0 = 1;
 
-        // if echo pin input changed
-        if(PIN_US_ECHO == IO_HIGH && state.echoHit == false) {
-            // rising edge
+        // If echo pin input is rising edge
+        if (PIN_US_ECHO == IO_HIGH && state.echoHit == false) {
+            // Set edge tracker high and reset counter
             state.echoHit = true;
-            led_state.counter = 0;
+            state.counter = 0;
         }
         
-        if(PIN_US_ECHO == IO_LOW && state.echoHit == true) {
-            // falling edge
-            state.finishedRead = true;
+        // If echo pin is falling edge
+        if (PIN_US_ECHO == IO_LOW && state.echoHit == true) {
+            // Set edge tracker low and save counter
             state.echoHit = false;
+            state.lastCounter = state.counter;
         }
         
         // Clear all individual IOC bits to continue
         IOCAFbits.IOCAF2 = 0;
 	}
     
-    if(IOCBFbits.IOCBF4) {
+    // Yellow button falling edge
+    if (IOCBFbits.IOCBF4) {
         state.setYellow = true;
         IOCBFbits.IOCBF4 = 0;
     }
     
-    if(IOCBFbits.IOCBF5) {
+    // Red button falling edge
+    if (IOCBFbits.IOCBF5) {
         state.setRed = true;
         IOCBFbits.IOCBF5 = 0;
     }
     
-    if(INTCONbits.TMR0IF && INTCONbits.TMR0IE) {
+    // Timer 0
+    if (INTCONbits.TMR0IF && INTCONbits.TMR0IE) {
         
 		// Increment counter if global echo bit is set
-		if(state.echoHit == true) {
-			led_state.counter += 1;
-		} else if(state.finishedRead == true){
-
-            if(state.setRed) {
-                db.sdb.rangePointRed = led_state.counter;
-                db_save();
-                thresh_red = led_state.counter;
-                state.setRed = false;
-            }
-            
-            if(state.setYellow) {
-                db.sdb.rangePointYellow = led_state.counter;
-                db_save();
-                thresh_yellow = led_state.counter;
-                state.setYellow = false;
-            }
-            
-            // Reset
-            state.finishedRead = false;
-		}
-        
+		if (state.echoHit == true) {
+			state.counter += 1;
+		}       
         
         INTCONbits.TMR0IF = 0;
     }
     
     // TIMER 1
     if (PIR1bits.TMR1IF && PIE1bits.TMR1IE) {    
-        
         PIR1bits.TMR1IF = 0;    
     }
 }
 
-LedState display_LED(LedState state) 
-{
-    if (state.ledState == STATE_GREEN) {
-        if (state.counter < thresh_yellow) {
-            state.ledState = STATE_YELLOW;
+void display_LED(LedState *ledState) 
+{   
+    uint8_t counter = state.lastCounter;
+    
+    // If the state is green
+    if (ledState->state == STATE_GREEN) {
+        // If the counter is within the yellow threshold, transition
+        if (counter < db.sdb.rangePointYellow) {
+            ledState->state = STATE_YELLOW;
             TLC5926_SetLights(LIGHT_YELLOW);
         }
-    } else if (state.ledState == STATE_YELLOW) {          
-        if (state.counter < thresh_red) {
-            state.ledState = STATE_RED;
+    // If the state is yellow
+    } else if (ledState->state == STATE_YELLOW) {
+        // If the state is within the red threshold, transition
+        if (counter < db.sdb.rangePointRed) {
+            ledState->state = STATE_RED;
             TLC5926_SetLights(LIGHT_RED);
         }
-        else if (state.counter > thresh_yellow + 5) {
-            state.ledState = STATE_GREEN;
+        // If the state is outside the green threshold, transition
+        else if (counter > db.sdb.rangePointYellow + 5) {
+            ledState->state = STATE_GREEN;
             TLC5926_SetLights(LIGHT_GREEN);                
         }
-    } else if (state.ledState == STATE_RED) {          
-        if (state.counter > (thresh_red + LIGHT_THRESH_OFFSET)) {
-            state.ledState = STATE_YELLOW;
+    // If the state is red
+    } else if (ledState->state == STATE_RED) {
+        // If the state is within the yellow threshold, transition
+        if (counter > (db.sdb.rangePointRed + LIGHT_THRESH_OFFSET)) {
+            ledState->state = STATE_YELLOW;
             TLC5926_SetLights(LIGHT_YELLOW);
-            state.turnOffCounter = 0;
+            ledState->turnoffCounter = 0;
         } 
+        // If there is no change in state
         else {
-            state.turnOffCounter++;
-            if(state.turnOffCounter > 5) { // Approx five seconds of red
+            // Increment the state counter
+            ledState->turnoffCounter++;
+            // After approx five seconds of red
+            if (ledState->turnoffCounter > 5) { 
                 TLC5926_SetLights(LIGHT_OFF);
             }
         }
     }
-
-    return state;
 }
 
-void display_All_Blink() {
+void blink_light(uint16_t lightColour) {
+    uint8_t i = 0;
     
-    TLC5926_SetLights(0xFFFF);
-    __delay_ms(200);
-    TLC5926_SetLights(0x0000);
+    for (i = 0; i < 5; i++) {
+        TLC5926_SetLights(lightColour);
+        __delay_ms(200);
+        TLC5926_SetLights(LIGHT_OFF);
+        __delay_ms(200);
+    }
 }
