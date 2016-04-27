@@ -52,7 +52,9 @@ void init(void)
 {
     OSCCONbits.IRCF = 0b0111; // 500KHz internal oscillator
     OSCCONbits.SCS = 0b10; // Use internal oscillator regardless of configuration bits
-    #define _XTAL_FREQ 500000
+    // Set power saving mode on by default
+    power_saving_mode = true; 
+    set_Power_Saving_Mode(power_saving_mode ? 1 : 0);
 
     INTCONbits.GIE = 1; // Enable global interrupts
     INTCONbits.PEIE = 1; // Enable peripheral interrupts
@@ -107,9 +109,6 @@ void init(void)
     
     // Set outputs to low initially
     PORTC = 0x00; 
-
-    // Set power saving mode on by default
-    power_saving_mode = true;
     
     // Initialise the database so that it is populated
     db_init(); 
@@ -132,11 +131,11 @@ void main()
     while(1) {
         if(power_saving_mode) {
             HCSR04_Trigger();
-            __delay_ms(1000);
+            DELAY_1000MS(power_saving_mode);
         } else {
             led_state = display_LED(led_state);
             HCSR04_Trigger();
-            __delay_ms(200);
+            DELAY_200MS(power_saving_mode);
         }
 
         if(state.setRed || state.setYellow) {
@@ -217,9 +216,9 @@ void interrupt ISR(void)
         // Switch to normal reading operation
         if(state.echoHit && power_saving_mode && led_state.turnOffCounter == 0) { 
             power_saving_mode = false;
+            set_Power_Saving_Mode(power_saving_mode);
             // Set the timer to be the external oscillator
             OSCCONbits.SCS = 0b00; // Use FOSC as specified in the configuration bits
-            #define _XTAL_FREQ 16000000
         }
         
         PIR1bits.TMR1IF = 0;    
@@ -265,6 +264,6 @@ LedState display_LED(LedState state)
 void display_All_Blink() {
     
     TLC5926_SetLights(0xFFFF);
-    __delay_ms(200);
+    DELAY_200MS(power_saving_mode);
     TLC5926_SetLights(0x0000);
 }

@@ -4,5 +4,6 @@
 #include <stdint.h>
 
 void HCSR04_Trigger(void);
+void set_Power_Saving_Mode(int mode);
 
 #endif	/* HCSR04_H */

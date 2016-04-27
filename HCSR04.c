@@ -17,6 +17,8 @@
 // PIC Includes
 #include <htc.h>
 
+static bool power_saving_mode = true;
+
 /*
  * HCSR04_Trigger
  * 
@@ -34,6 +36,10 @@
 void HCSR04_Trigger(void) {
     //Send at least a 10uS pulse on trigger line
     PIN_US_TRIGGER = 1; //high
-    __delay_us(15); //wait 15uS
+    DELAY_15US(power_saving_mode);
     PIN_US_TRIGGER = 0; //low
+}
+
+void set_Power_Saving_Mode(int mode) {
+    power_saving_mode = mode == 1 ? true: false;
 }
