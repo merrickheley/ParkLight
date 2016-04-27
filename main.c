@@ -35,15 +35,16 @@ typedef struct Global_State {
 typedef struct Led_State {
     uint8_t ledState; // Red by default?
     uint8_t counter;
+    uint8_t turnOffCounter;
 } LedState;
 
 volatile State state = { false, false, false, false }; 
-volatile LedState led_state = { STATE_RED, 0 };
+volatile LedState led_state = { STATE_RED, 0, 0 };
 
 volatile uint8_t thresh_red;
 volatile uint8_t thresh_yellow;
 
-uint8_t display_LED(uint8_t counter, uint8_t state);
+LedState display_LED(LedState state);
 void display_All_Blink(void);
 
 void init(void) 
@@ -121,7 +122,7 @@ void main()
     TLC5926_SetLights(LIGHT_RED);
     
     while(1) {
-        led_state.ledState = display_LED(led_state.counter, led_state.ledState);
+        led_state = display_LED(led_state);
         HCSR04_Trigger();
         __delay_ms(250);
         if(state.setRed || state.setYellow) {
@@ -149,8 +150,6 @@ void interrupt ISR(void)
             state.finishedRead = true;
             state.echoHit = false;
         }
-
-		//INTCONbits.IOCIF = 0; // IOCIF listed as read only
         
         // Clear all individual IOC bits to continue
         IOCAFbits.IOCAF2 = 0;
@@ -209,36 +208,34 @@ void interrupt ISR(void)
     }
 }
 
-uint8_t display_LED(uint8_t counter, uint8_t state) 
+LedState display_LED(LedState state) 
 {
-
-    if (state == STATE_GREEN) {
-        if (counter < thresh_yellow) {
-            state = STATE_YELLOW;
+    if (state.ledState == STATE_GREEN) {
+        if (state.counter < thresh_yellow) {
+            state.ledState = STATE_YELLOW;
             TLC5926_SetLights(LIGHT_YELLOW);
         }
-    } else if (state == STATE_YELLOW) {          
-        if (counter < thresh_red) {
-            state = STATE_RED;
+    } else if (state.ledState == STATE_YELLOW) {          
+        if (state.counter < thresh_red) {
+            state.ledState = STATE_RED;
             TLC5926_SetLights(LIGHT_RED);
         }
-        else if (counter > thresh_yellow + 5) {
-            state = STATE_GREEN;
+        else if (state.counter > thresh_yellow + 5) {
+            state.ledState = STATE_GREEN;
             TLC5926_SetLights(LIGHT_GREEN);                
         }
-    } else if (state == STATE_RED) {          
-        if (counter > (thresh_red + LIGHT_THRESH_OFFSET)) {
-            state = STATE_YELLOW;
+    } else if (state.ledState == STATE_RED) {          
+        if (state.counter > (thresh_red + LIGHT_THRESH_OFFSET)) {
+            state.ledState = STATE_YELLOW;
             TLC5926_SetLights(LIGHT_YELLOW);
+            state.turnOffCounter = 0;
         } 
-        // Reimplement the turning off after red for a while functionality
-        //else {
-
-            //if(transition > 5) { // Approx five seconds of red
-            //    TLC5926_SetLights(LIGHT_OFF);
-                // Break the loop, go into a power saving mode
-            //}
-        //}
+        else {
+            state.turnOffCounter++;
+            if(state.turnOffCounter > 5) { // Approx five seconds of red
+                TLC5926_SetLights(LIGHT_OFF);
+            }
+        }
     }
 
     return state;
