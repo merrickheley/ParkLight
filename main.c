@@ -24,7 +24,7 @@
 #include <htc.h>
 #include <pic16f1828.h>
 
-typedef volatile struct Global_State {
+typedef struct Global_State {
     bool echoHit;
     bool finishedRead;
     bool setYellow;
@@ -32,7 +32,7 @@ typedef volatile struct Global_State {
     bool triggerSensor;
 } State;
 
-typedef volatile struct Led_State {
+typedef struct Led_State {
     uint8_t ledState; // Red by default?
     uint8_t counter;
 } LedState;
