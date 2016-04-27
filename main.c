@@ -62,8 +62,8 @@ void init(void)
     IOCANbits.IOCAN2 = 1;
     
     // Enable RB5 and RB4 rising edge
-    IOCBNbits.IOCBN4 = 1;
-    IOCBNbits.IOCBN5 = 1;
+    IOCBPbits.IOCBP4 = 1;
+    IOCBPbits.IOCBP5 = 1;
 
     // Enable each timer
     INTCONbits.TMR0IE = 1;
@@ -156,19 +156,12 @@ void interrupt ISR(void)
 	}
     
     if(IOCBFbits.IOCBF4) {
-        // Debounce these button presses
-		// if yellow button hit
-		if(BTN_SET_YELLOW == IO_HIGH) {
-            state.setYellow = true;
-        }
+        state.setYellow = true;
         IOCBFbits.IOCBF4 = 0;
     }
     
     if(IOCBFbits.IOCBF5) {
-        // if red button hit
-		if(BTN_SET_RED == IO_HIGH) {
-            state.setRed = true;
-        }
+        state.setRed = true;
         IOCBFbits.IOCBF5 = 0;
     }
     
