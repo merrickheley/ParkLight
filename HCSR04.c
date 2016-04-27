@@ -40,6 +40,6 @@ void HCSR04_Trigger(void) {
     PIN_US_TRIGGER = 0; //low
 }
 
-void set_Power_Saving_Mode(int mode) {
-    power_saving_mode = mode == 1 ? true: false;
+void set_Power_Saving_Mode(bool mode) {
+    power_saving_mode = mode;
 }

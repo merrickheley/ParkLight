@@ -54,7 +54,7 @@ void init(void)
     OSCCONbits.SCS = 0b10; // Use internal oscillator regardless of configuration bits
     // Set power saving mode on by default
     power_saving_mode = true; 
-    set_Power_Saving_Mode(power_saving_mode ? 1 : 0);
+    set_Power_Saving_Mode(power_saving_mode);
 
     INTCONbits.GIE = 1; // Enable global interrupts
     INTCONbits.PEIE = 1; // Enable peripheral interrupts
