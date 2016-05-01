@@ -25,6 +25,8 @@
 #include <htc.h>
 #include <pic16f1828.h>
 
+#define MAX_COUNTER_VAL 100
+
 typedef struct Global_State {
     bool echoHit;
     bool setYellow;
@@ -208,9 +210,16 @@ void main()
         
         //display_LED(&led_state, readings[cIndex]);
         HCSR04_Trigger();
-        TLC5926_SetLights(LIGHT_OFF);
         __delay_ms(1000);
     }
+}
+
+void save_reading(void)
+{
+    // Set edge tracker low and save counter
+    state.echoHit = false;
+    state.reading = state.counter;
+    state.newReading = true;
 }
 
 void interrupt ISR(void) 
@@ -229,10 +238,7 @@ void interrupt ISR(void)
         
         // If echo pin is falling edge
         if (PIN_US_ECHO == IO_LOW && state.echoHit == true) {
-            // Set edge tracker low and save counter
-            state.echoHit = false;
-            state.reading = state.counter;
-            state.newReading = true;
+            save_reading();
         }
         
         // Clear all individual IOC bits to continue
@@ -257,6 +263,9 @@ void interrupt ISR(void)
 		// Increment counter if global echo bit is set
 		if (state.echoHit == true) {
 			state.counter++;
+            // Handle overflow
+            if (state.counter > MAX_COUNTER_VAL)
+                save_reading();
 		}       
         
         INTCONbits.TMR0IF = 0;
