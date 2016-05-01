@@ -18,6 +18,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <string.h>
 
 // PIC includes
 #include <xc.h>
@@ -29,7 +30,8 @@ typedef struct Global_State {
     bool setYellow;
     bool setRed;
     uint8_t counter;
-    uint8_t lastCounter;
+    uint8_t reading;
+    uint8_t newReading;
 } State;
 
 typedef struct Led_State {
@@ -40,8 +42,65 @@ typedef struct Led_State {
 volatile State state = { 0 }; 
 LedState led_state = { 0 };
 
-void display_LED(LedState *ledState);
-void blink_light(uint16_t lightColour);
+void display_LED(LedState *ledState, uint8_t reading);
+void blink_light(uint16_t lightColour, uint8_t flashes);
+
+void circular_increment_counter(uint8_t *cnt, uint8_t max)
+{
+    if (*cnt + 1 > max)
+        *cnt = 0;
+    else
+        *cnt++;
+}
+
+void swap(uint8_t *a, uint8_t *b)
+{
+	uint8_t tmp = *b;
+	*b = *a;
+	*a = tmp;
+}
+
+uint8_t fastMedian5(uint8_t *buf)
+{
+    uint8_t arr[5] = {0};
+    
+    // Put the numbers in an array
+    memcpy(arr, buf, 5);
+    
+    // Ensure a[0] < a[1], a[0] < a[3], a[3] < a[4]
+    if (arr[0] > arr[1]) swap(&arr[0], &arr[1]);
+    if (arr[3] > arr[4]) swap(&arr[3], &arr[4]);
+    if (arr[0] > arr[3]) {
+    	swap(&arr[0], &arr[3]);
+    	swap(&arr[1], &arr[4]);
+    }
+    
+    if (arr[2] > arr[1]) {
+    	if (arr[1] < arr[3]) {
+    		if (arr[2] < arr[3])
+                return arr[2];
+            else
+                return arr[3];
+        } else {
+            if (arr[1] < arr[4])
+                return arr[1];
+            else
+                return arr[4];
+        }
+    } else {
+    	if (arr[2] > arr[3]) {
+    		if (arr[2] < arr[4])
+                return arr[2];
+            else 
+                return arr[4];
+        } else {
+            if (arr[1] < arr[3])
+                return arr[1];
+            else 
+                return arr[3];
+        }
+    }
+}
 
 void init(void) 
 {
@@ -108,32 +167,49 @@ void init(void)
     PIN_LED_OE = IO_LOW;
 }
 
+#define FILTER_LEN 5
+#define LIGHT_FLASHES 5
+
 void main()
 {
-    uint8_t i = 0;
+    uint8_t readings[FILTER_LEN] = {0};
+    uint8_t cIndex = 0;
     init();
 
     TLC5926_SetLights(LIGHT_OFF);
     
-    while(1) {        
-        if (state.setRed) {
-            //db.sdb.rangePointRed = state.lastCounter;
-            //db_save();
-            blink_light(LIGHT_RED);
+    while(1) {
+        
+        // If there's been a new reading, add it to the circular buffer
+        if (state.newReading == true) {
+            circular_increment_counter(&cIndex, FILTER_LEN);
+            readings[cIndex] = state.reading;
+            state.newReading = false;
+            blink_light(LIGHT_GREEN, state.reading);
+        }
+        
+        // If the red button has been pressed.
+        // TODO: Should we clear the readings index when the button is pressed
+        // and get the median of 5 new readings?
+        if (state.setRed == true) {
+            db.sdb.rangePointRed = fastMedian5(readings);
+            db_save();
+            blink_light(LIGHT_RED, LIGHT_FLASHES);
             state.setRed = false;
         }
-
-        if (state.setYellow) {
-            //db.sdb.rangePointYellow = state.lastCounter;
-            //db_save();
-            blink_light(LIGHT_YELLOW);
+        
+        // If the yellow button has been pressed.
+        if (state.setYellow == true) {
+            db.sdb.rangePointYellow = fastMedian5(readings);
+            db_save();
+            blink_light(LIGHT_YELLOW, (uint8_t) fastMedian5(readings));
             state.setYellow = false;
         }
         
-        //display_LED(&led_state);
-        //HCSR04_Trigger();
-
-        __delay_ms(250);
+        //display_LED(&led_state, readings[cIndex]);
+        HCSR04_Trigger();
+        TLC5926_SetLights(LIGHT_OFF);
+        __delay_ms(1000);
     }
 }
 
@@ -155,7 +231,8 @@ void interrupt ISR(void)
         if (PIN_US_ECHO == IO_LOW && state.echoHit == true) {
             // Set edge tracker low and save counter
             state.echoHit = false;
-            state.lastCounter = state.counter;
+            state.reading = state.counter;
+            state.newReading = true;
         }
         
         // Clear all individual IOC bits to continue
@@ -179,7 +256,7 @@ void interrupt ISR(void)
         
 		// Increment counter if global echo bit is set
 		if (state.echoHit == true) {
-			state.counter += 1;
+			state.counter++;
 		}       
         
         INTCONbits.TMR0IF = 0;
@@ -191,33 +268,31 @@ void interrupt ISR(void)
     }
 }
 
-void display_LED(LedState *ledState) 
-{   
-    uint8_t counter = state.lastCounter;
-    
+void display_LED(LedState *ledState, uint8_t reading) 
+{       
     // If the state is green
     if (ledState->state == STATE_GREEN) {
         // If the counter is within the yellow threshold, transition
-        if (counter < db.sdb.rangePointYellow) {
+        if (reading < db.sdb.rangePointYellow) {
             ledState->state = STATE_YELLOW;
             TLC5926_SetLights(LIGHT_YELLOW);
         }
     // If the state is yellow
     } else if (ledState->state == STATE_YELLOW) {
         // If the state is within the red threshold, transition
-        if (counter < db.sdb.rangePointRed) {
+        if (reading < db.sdb.rangePointRed) {
             ledState->state = STATE_RED;
             TLC5926_SetLights(LIGHT_RED);
         }
         // If the state is outside the green threshold, transition
-        else if (counter > db.sdb.rangePointYellow + 5) {
+        else if (reading > db.sdb.rangePointYellow + 5) {
             ledState->state = STATE_GREEN;
             TLC5926_SetLights(LIGHT_GREEN);                
         }
     // If the state is red
     } else if (ledState->state == STATE_RED) {
         // If the state is within the yellow threshold, transition
-        if (counter > (db.sdb.rangePointRed + LIGHT_THRESH_OFFSET)) {
+        if (reading > (db.sdb.rangePointRed + LIGHT_THRESH_OFFSET)) {
             ledState->state = STATE_YELLOW;
             TLC5926_SetLights(LIGHT_YELLOW);
             ledState->turnoffCounter = 0;
@@ -234,10 +309,10 @@ void display_LED(LedState *ledState)
     }
 }
 
-void blink_light(uint16_t lightColour) {
+void blink_light(uint16_t lightColour, uint8_t flashes) {
     uint8_t i = 0;
-    
-    for (i = 0; i < 5; i++) {
+
+    for (i = 0; i < flashes; i++) {
         TLC5926_SetLights(lightColour);
         __delay_ms(200);
         TLC5926_SetLights(LIGHT_OFF);
