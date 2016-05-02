@@ -4,7 +4,7 @@
 #include <pic16f1828.h>
 
 #define _OTHER_XTAL_FREQ 16000000
-#define _XTAL_FREQ 500000
+#define _XTAL_FREQ 16000000
 
 #define LED_ON                  1
 #define LED_OFF                 0

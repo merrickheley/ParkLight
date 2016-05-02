@@ -12,10 +12,10 @@
 char UART_init(const long int baudrate, bool transmit, bool receive)
 {
     unsigned int x;
-    x = (_OTHER_XTAL_FREQ - baudrate*64)/(baudrate*64);   //SPBRG for Low Baud Rate
+    x = (_XTAL_FREQ - baudrate*64)/(baudrate*64);   //SPBRG for Low Baud Rate
     if(x>255)                                       //If High Baud Rage Required
     {
-        x = (_OTHER_XTAL_FREQ - baudrate*16)/(baudrate*16); //SPBRG for High Baud Rate
+        x = (_XTAL_FREQ - baudrate*16)/(baudrate*16); //SPBRG for High Baud Rate
         BRGH = 1;                                     //Setting High Baud Rate
     }
     if(x<256)
