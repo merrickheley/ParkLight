@@ -57,7 +57,7 @@ void TLC5926_SetLights(uint16_t bitmap) {
     for (i = 0; i < 16; i++) {
         
         // Set the data line
-        if (bitmap & (1 << (15 - i)))
+        if (bitmap & (uint16_t) (1 << (15 - i)))
             PIN_LED_SDI = IO_HIGH;
         else
             PIN_LED_SDI = IO_LOW;

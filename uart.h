@@ -13,7 +13,7 @@
 char UART_init(const long int baudrate, bool transmit, bool receive);
 void UART_write_text(char *text);
 char UART_data_ready();
-void UART_read_text(char *Output, unsigned int length);
+void UART_read_text(char *output, unsigned int length);
 
 #endif	/* UART_H */
 

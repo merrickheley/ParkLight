@@ -12,7 +12,9 @@
 #include "HCSR04.h"
 #include "TLC5926.h"
 #include "database.h"
+#include "display.h"
 #include "uart.h"
+#include "utils.h"
 
 // C libraries
 #include <stdio.h>
@@ -37,72 +39,8 @@ typedef struct Global_State {
     uint8_t newReading;
 } State;
 
-typedef struct Led_State {
-    uint8_t state; // Red by default
-    uint8_t turnoffCounter; // How many consecutive instances of a colour
-} LedState;
-
 volatile State state = { 0 }; 
 LedState led_state = { 0 };
-
-void display_LED(LedState *ledState, uint8_t reading);
-void blink_light(uint16_t lightColour, uint8_t flashes);
-
-void circular_increment_counter(uint8_t *cnt, uint8_t max)
-{   
-    (*cnt)++;
-    if (*cnt == max)
-        *cnt = 0;
-}
-
-void swap(uint8_t *a, uint8_t *b)
-{
-	uint8_t tmp = *b;
-	*b = *a;
-	*a = tmp;
-}
-
-uint8_t fastMedian5(uint8_t *buf)
-{
-    uint8_t arr[5] = {0};
-    
-    // Put the numbers in an array
-    memcpy(arr, buf, 5);
-    
-    // Ensure a[0] < a[1], a[0] < a[3], a[3] < a[4]
-    if (arr[0] > arr[1]) swap(&arr[0], &arr[1]);
-    if (arr[3] > arr[4]) swap(&arr[3], &arr[4]);
-    if (arr[0] > arr[3]) {
-    	swap(&arr[0], &arr[3]);
-    	swap(&arr[1], &arr[4]);
-    }
-    
-    if (arr[2] > arr[1]) {
-    	if (arr[1] < arr[3]) {
-    		if (arr[2] < arr[3])
-                return arr[2];
-            else
-                return arr[3];
-        } else {
-            if (arr[1] < arr[4])
-                return arr[1];
-            else
-                return arr[4];
-        }
-    } else {
-    	if (arr[2] > arr[3]) {
-    		if (arr[2] < arr[4])
-                return arr[2];
-            else 
-                return arr[4];
-        } else {
-            if (arr[1] < arr[3])
-                return arr[1];
-            else 
-                return arr[3];
-        }
-    }
-}
 
 void init(void) 
 {
@@ -172,64 +110,6 @@ void init(void)
     PIN_LED_OE = IO_LOW;
 }
 
-#define FILTER_LEN 5
-#define LIGHT_FLASHES 5
-#define BUFSIZE 50
-
-void main()
-{
-    uint8_t readings[FILTER_LEN] = {0};
-    uint8_t cIndex = 0;
-    char buf[BUFSIZE];
-    init();
-
-    TLC5926_SetLights(LIGHT_OFF);
-    HCSR04_Trigger();
-    
-    while(1) {
-        
-        // If there's been a new reading, add it to the circular buffer
-        if (state.newReading == true) {
-            readings[cIndex] = state.reading;
-            sprintf(buf, "R: %d\r\n", state.reading);
-//            sprintf(buf, "FIL %d %d: %d %d %d %d %d\r\n", cIndex, state.reading, 
-//                    readings[0], readings[1], readings[2], 
-//                    readings[3], readings[4]);
-            UART_write_text(buf);
-            circular_increment_counter(&cIndex, FILTER_LEN);
-            state.newReading = false;
-            //blink_light(LIGHT_GREEN, 1);
-            
-            // Update the display
-            display_LED(&led_state, readings[cIndex]);
-        }
-        
-        // If the red button has been pressed.
-        // TODO: Should we clear the readings index when the button is pressed
-        // and get the median of 5 new readings?
-        if (state.setRed == true) {
-            db.sdb.rangePointRed = fastMedian5(readings);
-            db_save();
-            sprintf(buf, "P RED: %d\r\n", db.sdb.rangePointRed);
-            UART_write_text(buf);
-            blink_light(LIGHT_RED, LIGHT_FLASHES);
-            state.setRed = false;
-        }
-        
-        // If the yellow button has been pressed.
-        if (state.setYellow == true) {
-            db.sdb.rangePointYellow = fastMedian5(readings);
-            db_save();
-            sprintf(buf, "P YEL: %d\r\n", db.sdb.rangePointYellow);
-            UART_write_text(buf);
-            blink_light(LIGHT_YELLOW, LIGHT_FLASHES);
-            state.setYellow = false;
-        }
-        
-        __delay_ms(200);
-    }
-}
-
 void save_reading(void)
 {
     // Set edge tracker low and save counter
@@ -293,54 +173,64 @@ void interrupt ISR(void)
     }
 }
 
-void display_LED(LedState *ledState, uint8_t reading) 
-{       
-    // If the state is green
-    if (ledState->state == STATE_GREEN) {
-        // If the counter is within the yellow threshold, transition
-        if (reading < db.sdb.rangePointYellow) {
-            ledState->state = STATE_YELLOW;
-            TLC5926_SetLights(LIGHT_YELLOW);
-        }
-    // If the state is yellow
-    } else if (ledState->state == STATE_YELLOW) {
-        // If the state is within the red threshold, transition
-        if (reading < db.sdb.rangePointRed) {
-            ledState->state = STATE_RED;
-            TLC5926_SetLights(LIGHT_RED);
-        }
-        // If the state is outside the green threshold, transition
-        else if (reading > db.sdb.rangePointYellow + 5) {
-            ledState->state = STATE_GREEN;
-            TLC5926_SetLights(LIGHT_GREEN);                
-        }
-    // If the state is red
-    } else if (ledState->state == STATE_RED) {
-        // If the state is within the yellow threshold, transition
-        if (reading > (db.sdb.rangePointRed + LIGHT_THRESH_OFFSET)) {
-            ledState->state = STATE_YELLOW;
-            TLC5926_SetLights(LIGHT_YELLOW);
-            ledState->turnoffCounter = 0;
-        } 
-        // If there is no change in state
-        else {
-            // Increment the state counter
-            ledState->turnoffCounter++;
-            // After approx five seconds of red
-            if (ledState->turnoffCounter > 5) { 
-                TLC5926_SetLights(LIGHT_OFF);
-            }
-        }
-    }
-}
 
-void blink_light(uint16_t lightColour, uint8_t flashes) {
-    uint8_t i = 0;
+#define FILTER_LEN 5
+#define LIGHT_FLASHES 5
+#define BUFSIZE 50
 
-    for (i = 0; i < flashes; i++) {
-        TLC5926_SetLights(lightColour);
-        __delay_ms(200);
-        TLC5926_SetLights(LIGHT_OFF);
+void main()
+{
+    uint8_t readings[FILTER_LEN] = {0};
+    uint8_t cIndex = 0;
+    char buf[BUFSIZE];
+    init();
+
+    TLC5926_SetLights(LIGHT_OFF);
+    HCSR04_Trigger();
+    
+    while(1) {
+        
+        // If there's been a new reading, add it to the circular buffer
+        if (state.newReading == true) {
+            readings[cIndex] = state.reading;
+            sprintf(buf, "R: %d\r\n", state.reading);
+//            sprintf(buf, "FIL %d %d: %d %d %d %d %d\r\n", cIndex, state.reading, 
+//                    readings[0], readings[1], readings[2], 
+//                    readings[3], readings[4]);
+            UART_write_text(buf);
+            circular_increment_counter(&cIndex, FILTER_LEN);
+            state.newReading = false;
+            //blink_light(LIGHT_GREEN, 1);
+            
+            // Update the display and trigger a new pulse
+            display_LED(&led_state, readings[cIndex], 
+                    (uint8_t) db.sdb.rangePointYellow,
+                    (uint8_t) db.sdb.rangePointRed);
+            HCSR04_Trigger();
+        }
+        
+        // If the red button has been pressed.
+        // TODO: Should we clear the readings index when the button is pressed
+        // and get the median of 5 new readings?
+        if (state.setRed == true) {
+            db.sdb.rangePointRed = fastMedian5(readings);
+            db_save();
+            sprintf(buf, "P RED: %d\r\n", db.sdb.rangePointRed);
+            UART_write_text(buf);
+            blink_light(LIGHT_RED, LIGHT_FLASHES);
+            state.setRed = false;
+        }
+        
+        // If the yellow button has been pressed.
+        if (state.setYellow == true) {
+            db.sdb.rangePointYellow = fastMedian5(readings);
+            db_save();
+            sprintf(buf, "P YEL: %d\r\n", db.sdb.rangePointYellow);
+            UART_write_text(buf);
+            blink_light(LIGHT_YELLOW, LIGHT_FLASHES);
+            state.setYellow = false;
+        }
+        
         __delay_ms(200);
     }
 }

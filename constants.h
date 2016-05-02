@@ -25,10 +25,10 @@
 #define PIN_LED_OE              RC4
 
 // LED Array colour bitmap values
-#define LIGHT_RED 0x001F
-#define LIGHT_YELLOW 0x7C00
-#define LIGHT_GREEN 0x03E0
-#define LIGHT_OFF 0x0000
+#define LIGHT_RED       0x001F
+#define LIGHT_YELLOW    0x7C00
+#define LIGHT_GREEN     0x03E0
+#define LIGHT_OFF       0x0000
 
 #define LIGHT_THRESH_OFFSET 2
 
