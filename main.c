@@ -217,7 +217,7 @@ void main()
             db_save();
             sprintf(buf, "P YEL: %d\r\n", db.sdb.rangePointYellow);
             UART_write_text(buf);
-            blink_light(LIGHT_YELLOW, (uint8_t) fastMedian5(readings));
+            blink_light(LIGHT_YELLOW, LIGHT_FLASHES);
             state.setYellow = false;
         }
         
