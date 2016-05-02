@@ -23,6 +23,8 @@
       <itemPath>EEPROM.h</itemPath>
       <itemPath>database.c</itemPath>
       <itemPath>database.h</itemPath>
+      <itemPath>uart.c</itemPath>
+      <itemPath>uart.h</itemPath>
     </logicalFolder>
     <logicalFolder name="ExternalFiles"
                    displayName="Important Files"

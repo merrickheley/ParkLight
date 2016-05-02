@@ -12,6 +12,7 @@
 #include "HCSR04.h"
 #include "TLC5926.h"
 #include "database.h"
+#include "uart.h"
 
 // C libraries
 #include <stdio.h>
@@ -165,6 +166,9 @@ void init(void)
     
     TLC5926_init();
     
+    // Baud rates above 19200 didn't work
+    UART_init(19200, true, false);
+    
     // Drive it low to turn LED's on.
     PIN_LED_OE = IO_LOW;
 }
@@ -194,14 +198,16 @@ void main()
         // TODO: Should we clear the readings index when the button is pressed
         // and get the median of 5 new readings?
         if (state.setRed == true) {
+            UART_write_text("Red pressed\r\n");
             db.sdb.rangePointRed = fastMedian5(readings);
-            db_save();
+            db_save();            
             blink_light(LIGHT_RED, LIGHT_FLASHES);
             state.setRed = false;
         }
         
         // If the yellow button has been pressed.
         if (state.setYellow == true) {
+            UART_write_text("Yellow pressed\r\n");
             db.sdb.rangePointYellow = fastMedian5(readings);
             db_save();
             blink_light(LIGHT_YELLOW, (uint8_t) fastMedian5(readings));
