@@ -184,19 +184,24 @@ void main()
     init();
 
     TLC5926_SetLights(LIGHT_OFF);
+    HCSR04_Trigger();
     
     while(1) {
         
         // If there's been a new reading, add it to the circular buffer
         if (state.newReading == true) {
             readings[cIndex] = state.reading;
-            sprintf(buf, "FIL %d %d: %d %d %d %d %d\r\n", cIndex, state.reading, 
-                    readings[0], readings[1], readings[2], 
-                    readings[3], readings[4]);
-            circular_increment_counter(&cIndex, FILTER_LEN);
+            sprintf(buf, "R: %d\r\n", state.reading);
+//            sprintf(buf, "FIL %d %d: %d %d %d %d %d\r\n", cIndex, state.reading, 
+//                    readings[0], readings[1], readings[2], 
+//                    readings[3], readings[4]);
             UART_write_text(buf);
+            circular_increment_counter(&cIndex, FILTER_LEN);
             state.newReading = false;
             //blink_light(LIGHT_GREEN, 1);
+            
+            // Update the display
+            display_LED(&led_state, readings[cIndex]);
         }
         
         // If the red button has been pressed.
@@ -221,9 +226,7 @@ void main()
             state.setYellow = false;
         }
         
-        display_LED(&led_state, readings[cIndex]);
-        HCSR04_Trigger();
-        __delay_ms(1000);
+        __delay_ms(200);
     }
 }
 
