@@ -202,11 +202,10 @@ void main()
             state.newReading = false;
             //blink_light(LIGHT_GREEN, 1);
             
-            // Update the display and trigger a new pulse
+            // Update the display
             display_LED(&led_state, readings[cIndex], 
                     (uint8_t) db.sdb.rangePointYellow,
                     (uint8_t) db.sdb.rangePointRed);
-            HCSR04_Trigger();
         }
         
         // If the red button has been pressed.
@@ -231,6 +230,9 @@ void main()
             state.setYellow = false;
         }
         
+        // Make us sensor trigger regularly, just in case it becomes
+        // detached during normal operation.
+         HCSR04_Trigger();
         __delay_ms(200);
     }
 }
