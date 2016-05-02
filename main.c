@@ -49,11 +49,10 @@ void display_LED(LedState *ledState, uint8_t reading);
 void blink_light(uint16_t lightColour, uint8_t flashes);
 
 void circular_increment_counter(uint8_t *cnt, uint8_t max)
-{
-    if (*cnt + 1 > max)
+{   
+    (*cnt)++;
+    if (*cnt == max)
         *cnt = 0;
-    else
-        *cnt++;
 }
 
 void swap(uint8_t *a, uint8_t *b)
@@ -175,7 +174,7 @@ void init(void)
 
 #define FILTER_LEN 5
 #define LIGHT_FLASHES 5
-#define BUFSIZE 20
+#define BUFSIZE 50
 
 void main()
 {
@@ -190,35 +189,39 @@ void main()
         
         // If there's been a new reading, add it to the circular buffer
         if (state.newReading == true) {
-            sprintf(buf, "R: %d\r\n", state.reading);
-            UART_write_text(buf);
-            circular_increment_counter(&cIndex, FILTER_LEN);
             readings[cIndex] = state.reading;
+            sprintf(buf, "FIL %d %d: %d %d %d %d %d\r\n", cIndex, state.reading, 
+                    readings[0], readings[1], readings[2], 
+                    readings[3], readings[4]);
+            circular_increment_counter(&cIndex, FILTER_LEN);
+            UART_write_text(buf);
             state.newReading = false;
-            blink_light(LIGHT_GREEN, 1);
+            //blink_light(LIGHT_GREEN, 1);
         }
         
         // If the red button has been pressed.
         // TODO: Should we clear the readings index when the button is pressed
         // and get the median of 5 new readings?
         if (state.setRed == true) {
-            UART_write_text("Red pressed\r\n");
             db.sdb.rangePointRed = fastMedian5(readings);
-            db_save();            
+            db_save();
+            sprintf(buf, "P RED: %d\r\n", db.sdb.rangePointRed);
+            UART_write_text(buf);
             blink_light(LIGHT_RED, LIGHT_FLASHES);
             state.setRed = false;
         }
         
         // If the yellow button has been pressed.
         if (state.setYellow == true) {
-            UART_write_text("Yellow pressed\r\n");
             db.sdb.rangePointYellow = fastMedian5(readings);
             db_save();
+            sprintf(buf, "P YEL: %d\r\n", db.sdb.rangePointYellow);
+            UART_write_text(buf);
             blink_light(LIGHT_YELLOW, (uint8_t) fastMedian5(readings));
             state.setYellow = false;
         }
         
-        //display_LED(&led_state, readings[cIndex]);
+        display_LED(&led_state, readings[cIndex]);
         HCSR04_Trigger();
         __delay_ms(1000);
     }
