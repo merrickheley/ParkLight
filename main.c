@@ -175,11 +175,13 @@ void init(void)
 
 #define FILTER_LEN 5
 #define LIGHT_FLASHES 5
+#define BUFSIZE 20
 
 void main()
 {
     uint8_t readings[FILTER_LEN] = {0};
     uint8_t cIndex = 0;
+    char buf[BUFSIZE];
     init();
 
     TLC5926_SetLights(LIGHT_OFF);
@@ -188,10 +190,12 @@ void main()
         
         // If there's been a new reading, add it to the circular buffer
         if (state.newReading == true) {
+            sprintf(buf, "R: %d\r\n", state.reading);
+            UART_write_text(buf);
             circular_increment_counter(&cIndex, FILTER_LEN);
             readings[cIndex] = state.reading;
             state.newReading = false;
-            blink_light(LIGHT_GREEN, state.reading);
+            blink_light(LIGHT_GREEN, 1);
         }
         
         // If the red button has been pressed.
