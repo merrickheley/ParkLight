@@ -13,14 +13,30 @@
 #include "constants.h"
 #include "TLC5926.h"
 
-#define LED_OFF_THRESH 25
+#include <stdio.h>
+
+#define LED_TIMER_OFF_THRESH 25
+#define DIST_THRESH 2
+
+uint8_t absdiff(uint8_t a, uint8_t b) 
+{
+    if (a > b)
+        return a-b;
+    else
+        return b-a;
+}
 
 void display_LED(LedState *ledState, uint8_t reading, uint8_t yellow, uint8_t red) 
 {   
     uint8_t oldLedState = ledState->state;
     
+    // The LED's were off, and there has been significant enough change 
+    // in the reading to trigger activation.
+    if (oldLedState == STATE_OFF && 
+            (absdiff(reading, ledState->offReading) > DIST_THRESH)) {
+        ledState->state = ledState->offState;
     // If the state is green
-    if (oldLedState == STATE_GREEN) {
+    } else if (oldLedState == STATE_GREEN) {
         // If the counter is within the yellow threshold, transition
         if (reading < yellow)
             ledState->state = STATE_YELLOW;
@@ -30,33 +46,43 @@ void display_LED(LedState *ledState, uint8_t reading, uint8_t yellow, uint8_t re
         if (reading < red)
             ledState->state = STATE_RED;
         // If the state is outside the green threshold, transition
-        else if (reading > (yellow + LIGHT_THRESH_OFFSET))
+        else if (reading > (yellow + DIST_THRESH))
             ledState->state = STATE_GREEN;
     // If the state is red
     } else if (oldLedState == STATE_RED) {
         // If the state is within the yellow threshold, transition
-        if (reading > (red + LIGHT_THRESH_OFFSET))
+        if (reading > (red + DIST_THRESH))
             ledState->state = STATE_YELLOW;
-    }
+    }        
     
     // If the led state hasn't been changed
-    if (ledState->state == oldLedState) {
+    if (ledState->state == oldLedState && oldLedState != STATE_OFF) {
         // Turn the light off if we're over the threshold
-        if (ledState->turnoffCounter >= LED_OFF_THRESH)
-            TLC5926_SetLights(LIGHT_OFF);
+        if (ledState->turnoffCounter >= LED_TIMER_OFF_THRESH) {
+            ledState->offState = ledState->state;
+            ledState->offReading = reading;
+            ledState->state = STATE_OFF;
+        }
         // Otherwise increment the counter
         else
             ledState->turnoffCounter++;
     } 
-    // If the state has changed, updates the light and reset the counter
-    else {
-        ledState->turnoffCounter = 0;
-        if (ledState->state == STATE_RED)
-            TLC5926_SetLights(LIGHT_RED);
-        else if (ledState->state == STATE_YELLOW)
-            TLC5926_SetLights(LIGHT_YELLOW);
-        else if (ledState->state == STATE_GREEN)
-            TLC5926_SetLights(LIGHT_GREEN);
+    
+    // Only do something if the led state has changed
+    if (ledState->state != oldLedState) {
+        // If the state is off, set the lights off
+        if (ledState->state == STATE_OFF)
+            TLC5926_SetLights(LIGHT_OFF);
+        // If the state has changed, reset the counter & update lights
+        else {
+            ledState->turnoffCounter = 0;
+            if (ledState->state == STATE_RED)
+                TLC5926_SetLights(LIGHT_RED);
+            else if (ledState->state == STATE_YELLOW)
+                TLC5926_SetLights(LIGHT_YELLOW);
+            else if (ledState->state == STATE_GREEN)
+                TLC5926_SetLights(LIGHT_GREEN);
+        }
     }
 }
 
