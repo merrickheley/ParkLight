@@ -3,7 +3,7 @@
 
 #include <pic16f1828.h>
 
-#define _XTAL_FREQ 16000000
+#define _XTAL_FREQ              16000000
 
 #define LED_ON                  1
 #define LED_OFF                 0
@@ -25,21 +25,21 @@
 #define PIN_LED_OE              RC4
 
 // LED Array colour bitmap values
-#define LIGHT_RED 0x001F
-#define LIGHT_YELLOW 0x7C00
-#define LIGHT_GREEN 0x03E0
-#define LIGHT_OFF 0x0000
+#define LIGHT_RED               0x001F
+#define LIGHT_YELLOW            0x7C00
+#define LIGHT_GREEN             0x03E0
+#define LIGHT_OFF               0x0000
 
-#define LIGHT_THRESH_OFFSET 2
+#define LIGHT_THRESH_OFFSET     2
 
 // Button pins for EEPROM
 #define BTN_SET_YELLOW          RB4
 #define BTN_SET_RED             RB5
 
 // Values for Green, yellow and red lighting states
-#define STATE_GREEN 0
-#define STATE_YELLOW 1
-#define STATE_RED 2
+#define DISP_STATE_GREEN             0
+#define DISP_STATE_YELLOW            1
+#define DISP_STATE_RED               2
 
 // MACRO for delays dependent on power_saving_mode
 #define DELAY_MS(X,PWR_SAVING_MODE) (PWR_SAVING_MODE ? __delay_ms(X/32) : __delay_ms(X))

@@ -12,48 +12,47 @@
 #include "HCSR04.h"
 #include "TLC5926.h"
 #include "database.h"
+#include "display.h"
+#include "uart.h"
+#include "utils.h"
 
 // C libraries
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <string.h>
 
 // PIC includes
 #include <xc.h>
 #include <htc.h>
 #include <pic16f1828.h>
 
+#define MAX_COUNTER_VAL 100
+
 typedef struct Global_State {
     bool echoHit;
-    bool finishedRead;
     bool setYellow;
     bool setRed;
+    uint8_t counter;
+    uint8_t reading;
+    uint8_t newReading;
 } State;
 
-typedef struct Led_State {
-    uint8_t ledState; // Red by default?
-    uint8_t counter;
-    uint8_t turnOffCounter;
-} LedState;
-
 volatile State state = { 0 }; 
-volatile LedState led_state = { STATE_RED, 0, 0 };
+LedState led_state = { 0 };
 
-volatile uint8_t thresh_red;
-volatile uint8_t thresh_yellow;
-volatile bool power_saving_mode;
+#define IS_POWER_SAVING(led_state) (led_state.state == DISP_STATE_OFF)
 
-LedState display_LED(LedState state);
-void display_All_Blink(void);
+#define CLOCK_INTERNAL 0b10
+#define CLOCK_EXTERNAL 0b00
+#define SET_CLOCK(state) (OSCCONbits.SCS = state)
 
 void init(void) 
 {
+    // Power Saving mode is off by default
     OSCCONbits.IRCF = 0b0111; // 500KHz internal oscillator
-    OSCCONbits.SCS = 0b10; // Use internal oscillator regardless of configuration bits
-    // Set power saving mode on by default
-    power_saving_mode = true; 
-    set_Power_Saving_Mode(power_saving_mode);
+    SET_CLOCK(CLOCK_EXTERNAL);
 
     INTCONbits.GIE = 1; // Enable global interrupts
     INTCONbits.PEIE = 1; // Enable peripheral interrupts
@@ -67,7 +66,7 @@ void init(void)
     // Enable RA2 falling edge
     IOCANbits.IOCAN2 = 1;
     
-    // Enable RB5 and RB4 rising edge
+    // Enable RB5 and RB4 falling edge
     IOCBNbits.IOCBN4 = 1;
     IOCBNbits.IOCBN5 = 1;
 
@@ -112,159 +111,222 @@ void init(void)
     // Initialise the database so that it is populated
     db_init(); 
     
-    thresh_red = db.sdb.rangePointRed;
-    thresh_yellow = db.sdb.rangePointYellow;
-    
     TLC5926_init();
+    
+    // Baud rates above 19200 didn't work
+    UART_init(19200, true, false);
     
     // Drive it low to turn LED's on.
     PIN_LED_OE = IO_LOW;
 }
 
-void main()
+void save_reading(void)
 {
-    init();
-
-    TLC5926_SetLights(LIGHT_RED);
-    
-    while(1) {
-        if(power_saving_mode) {
-            HCSR04_Trigger();
-            DELAY_MS(1000,power_saving_mode);
-        } else {
-            led_state = display_LED(led_state);
-            HCSR04_Trigger();
-            DELAY_MS(200,power_saving_mode);
-        }
-
-        if(state.setRed || state.setYellow) {
-            display_All_Blink();
-        }
-    }
+    // Set edge tracker low and save counter
+    state.echoHit = false;
+    state.reading = state.counter;
+    state.newReading = true;
 }
 
 void interrupt ISR(void) 
 {
-    // IOC triggered
-    if(IOCAFbits.IOCAF2)
+    // Edge detected on echo pin
+    if (IOCAFbits.IOCAF2)
     {
         PIN_LED_0 = 1;
 
-        // if echo pin input changed
-        if(PIN_US_ECHO == IO_HIGH && state.echoHit == false) {
-            // rising edge
+        // If echo pin input is rising edge
+        if (PIN_US_ECHO == IO_HIGH && state.echoHit == false) {
+            // Set edge tracker high and reset counter
             state.echoHit = true;
-            led_state.counter = 0;
+            state.counter = 0;
         }
         
-        if(PIN_US_ECHO == IO_LOW && state.echoHit == true) {
-            // falling edge
-            state.finishedRead = true;
-            state.echoHit = false;
+        // If echo pin is falling edge
+        if (PIN_US_ECHO == IO_LOW && state.echoHit == true) {
+            save_reading();
         }
         
         // Clear all individual IOC bits to continue
         IOCAFbits.IOCAF2 = 0;
 	}
     
-    if(IOCBFbits.IOCBF4) {
+    // Yellow button falling edge
+    if (IOCBFbits.IOCBF4) {
         state.setYellow = true;
         IOCBFbits.IOCBF4 = 0;
     }
     
-    if(IOCBFbits.IOCBF5) {
+    // Red button falling edge
+    if (IOCBFbits.IOCBF5) {
         state.setRed = true;
         IOCBFbits.IOCBF5 = 0;
     }
     
-    if(INTCONbits.TMR0IF && INTCONbits.TMR0IE) {
+    // Timer 0
+    if (INTCONbits.TMR0IF && INTCONbits.TMR0IE) {
         
-        if(!power_saving_mode) {
             // Increment counter if global echo bit is set
-            if(state.echoHit == true) {
-                led_state.counter += 1;
-            } else if(state.finishedRead == true){
+            if (state.echoHit == true) {
+                state.counter++;
+                // Handle overflow
+                if (state.counter > MAX_COUNTER_VAL)
+                    save_reading();
+            }       
 
-                if(state.setRed) {
-                    db.sdb.rangePointRed = led_state.counter;
-                    db_save();
-                    thresh_red = led_state.counter;
-                    state.setRed = false;
-                }
-
-                if(state.setYellow) {
-                    db.sdb.rangePointYellow = led_state.counter;
-                    db_save();
-                    thresh_yellow = led_state.counter;
-                    state.setYellow = false;
-                }
-
-                // Reset
-                state.finishedRead = false;
-            }
-        }
         
         INTCONbits.TMR0IF = 0;
     }
     
     // TIMER 1
     if (PIR1bits.TMR1IF && PIE1bits.TMR1IE) {    
-        
-        // If echoHit is true, then something has been read
-        // Switch to normal reading operation
-        if(state.echoHit && power_saving_mode && led_state.turnOffCounter == 0) { 
-            power_saving_mode = false;
-            set_Power_Saving_Mode(power_saving_mode);
-            // Set the timer to be the external oscillator
-            OSCCONbits.SCS = 0b00; // Use FOSC as specified in the configuration bits
-        }
-        
         PIR1bits.TMR1IF = 0;    
     }
 }
 
-LedState display_LED(LedState state) 
-{
-    if (state.ledState == STATE_GREEN) {
-        if (state.counter < thresh_yellow) {
-            state.ledState = STATE_YELLOW;
-            TLC5926_SetLights(LIGHT_YELLOW);
-        }
-    } else if (state.ledState == STATE_YELLOW) {          
-        if (state.counter < thresh_red) {
-            state.ledState = STATE_RED;
-            TLC5926_SetLights(LIGHT_RED);
-        }
-        else if (state.counter > thresh_yellow + 5) {
-            state.ledState = STATE_GREEN;
-            TLC5926_SetLights(LIGHT_GREEN);                
-        }
-    } else if (state.ledState == STATE_RED) {          
-        if (state.counter > (thresh_red + LIGHT_THRESH_OFFSET)) {
-            state.ledState = STATE_YELLOW;
-            TLC5926_SetLights(LIGHT_YELLOW);
-            state.turnOffCounter = 0;
-        } 
-        else {
-            state.turnOffCounter++;
-            if(state.turnOffCounter > 5) { // Approx five seconds of red
-                // Turn the lights off
-                TLC5926_SetLights(LIGHT_OFF);
-                // Set power saving mode
-                OSCCONbits.SCS = 0b10; // Use internal oscillator regardless of configuration bits
-                // Set power saving mode on by default
-                power_saving_mode = true; 
-                set_Power_Saving_Mode(power_saving_mode);
-            }
-        }
-    }
 
-    return state;
+#define FILTER_LEN 5
+#define LIGHT_FLASHES 5
+#define BUFSIZE 50
+
+#define MAIN_STATE_POWERSAVING      0
+#define MAIN_STATE_CALIBRATION      1
+#define MAIN_STATE_DISPLAY          2
+
+#define CALIB_STATE_RED             0
+#define CALIB_STATE_YELLOW          1
+
+#define POWER_SAVING_COUNTER_TRESH  2
+
+#define HCSR04_TRIG_DELAY_MIN       200
+#define HCSR04_TRIG_DELAY_SLOW      1000
+
+void enter_powersaving(uint8_t *stateVar, uint8_t *cIndex, uint8_t *psReading)
+{
+    *cIndex = 0;
+    *psReading = 0;
+    TLC5926_SetLights(LIGHT_OFF);
+    SET_CLOCK(CLOCK_INTERNAL);
+    HCSR04_Trigger(true);
+    DELAY_MS(HCSR04_TRIG_DELAY_SLOW, true);
+    *stateVar = MAIN_STATE_POWERSAVING;
 }
 
-void display_All_Blink() {
+void enter_calibration(uint8_t *stateVar, uint8_t *cIndex, State *state, 
+        uint8_t *calibState)
+{
+    *cIndex = 0;
+    if (state->setRed == true)
+        *calibState = CALIB_STATE_RED;
+    else
+        &calibState = CALIB_STATE_YELLOW;
+    SET_CLOCK(CLOCK_EXTERNAL);
+    *stateVar = MAIN_STATE_CALIBRATION;
+}
+
+void enter_display(uint8_t *stateVar)
+{
+    SET_CLOCK(CLOCK_EXTERNAL);
+    HCSR04_Trigger(false);
+    DELAY_MS(HCSR04_TRIG_DELAY_MIN, false);
+    *stateVar = MAIN_STATE_DISPLAY;
+}
+
+void main()
+{
+    uint8_t readings[FILTER_LEN] = {0};
+    uint8_t cIndex = 0;
+    char buf[BUFSIZE];
+    uint8_t stateVar = MAIN_STATE_DISPLAY;
+    uint8_t calibState = CALIB_STATE_RED;
+    uint8_t psReading = 0;
+    init();
+
+    TLC5926_SetLights(LIGHT_RED);
+    HCSR04_Trigger(false);
     
-    TLC5926_SetLights(0xFFFF);
-    DELAY_MS(200,power_saving_mode);
-    TLC5926_SetLights(0x0000);
+    while(1) {
+
+        // If there's been a new reading, add it to the circular buffer
+        if (state.newReading == true) {
+            readings[cIndex] = state.reading;
+            sprintf(buf, "R: %d\r\n", state.reading);
+//            sprintf(buf, "FIL %d %d: %d %d %d %d %d\r\n", cIndex, state.reading, 
+//                    readings[0], readings[1], readings[2], 
+//                    readings[3], readings[4]);
+            UART_write_text(buf);
+            circular_increment_counter(&cIndex, FILTER_LEN);
+            // Clear new reading at end of while loop
+        }
+        
+        // If a calibration button has been pressed reset the circular buffer
+        // and enter the calibration state.
+        if (state.setRed == true || state.setYellow == true)
+        {
+            enter_calibration(&stateVar, &cIndex, &state, &calibState);
+            state.setRed = false;
+            state.setYellow = false;
+        }
+        
+        if (stateVar == MAIN_STATE_POWERSAVING)
+        {
+            // Wait for the filter to fill for the first time
+            if (cIndex == (FILTER_LEN-1) && psReading == 0)
+                psReading = fastMedian5(readings);
+            
+            // If the reading has been set and the threshold has been met
+            if (psReading > 0 && absdiff(state.reading, psReading) >= POWER_SAVING_COUNTER_TRESH)
+                enter_display(stateVar);
+            // Otherwise trigger the HCSR04
+            else
+            {
+                HCSR04_Trigger(true);
+                DELAY_MS(HCSR04_TRIG_DELAY_SLOW, true);
+            }
+        }
+        else if (stateVar == MAIN_STATE_CALIBRATION)
+        {
+            // Wait for the filter to fill
+            if (cIndex == (FILTER_LEN-1))
+            {
+                // If the red button was pressed.
+                if (calibState == CALIB_STATE_RED) {
+                    db.sdb.rangePointRed = fastMedian5(readings);
+                    sprintf(buf, "P RED: %d\r\n", db.sdb.rangePointRed);
+                    UART_write_text(buf);
+                    blink_light(LIGHT_RED, LIGHT_FLASHES);
+                }
+                // If the yellow button was pressed.
+                if (calibState = CALIB_STATE_YELLOW) {
+                    db.sdb.rangePointYellow = fastMedian5(readings);
+                    sprintf(buf, "P YEL: %d\r\n", db.sdb.rangePointYellow);
+                    UART_write_text(buf);
+                    blink_light(LIGHT_YELLOW, LIGHT_FLASHES);
+                }
+                db_save();
+                enter_powersaving(&stateVar, &cIndex, &psReading);
+            }
+            // If filter isn't full, get more values
+            else
+            {
+                HCSR04_Trigger(false);
+                DELAY_MS(HCSR04_TRIG_DELAY_MIN, false);
+            }                   
+        }
+        // In the display state, drive the display as normal
+        else if (stateVar == MAIN_STATE_DISPLAY)
+        {
+            // Update the display
+            //if (state.newReading == true)
+            //    display_LED(&led_state, state.reading, 
+            //          (uint8_t) db.sdb.rangePointYellow,
+            //          (uint8_t) db.sdb.rangePointRed);
+            
+            HCSR04_Trigger(false);
+            DELAY_MS(HCSR04_TRIG_DELAY_MIN, false);
+        }
+        
+        // Clear the new reading after we drive the state machine
+        state.newReading = false;
+    }
 }

@@ -64,3 +64,11 @@ uint8_t fastMedian5(uint8_t *buf)
         }
     }
 }
+
+uint8_t absdiff(uint8_t a, uint8_t b) 
+{
+    if (a > b)
+        return a-b;
+    else
+        return b-a;
+}

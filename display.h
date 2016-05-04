@@ -11,10 +11,10 @@
 #include <stdint.h>
 
 // Values for Green, yellow and red lighting states
-#define STATE_GREEN 0
-#define STATE_YELLOW 1
-#define STATE_RED 2
-#define STATE_OFF 3
+#define DISP_STATE_GREEN    0
+#define DISP_STATE_YELLOW   1
+#define DISP_STATE_RED      2
+#define DISP_STATE_OFF      3
 
 typedef struct Led_State {
     uint8_t state;          // Red by default

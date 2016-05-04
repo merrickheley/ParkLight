@@ -4,7 +4,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-void HCSR04_Trigger(void);
-void set_Power_Saving_Mode(bool mode);
+void HCSR04_Trigger(bool power_saving);
 
 #endif	/* HCSR04_H */
