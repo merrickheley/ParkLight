@@ -16,10 +16,9 @@
 
 #include <stdio.h>
 
-#define LED_TIMER_OFF_THRESH 25
 #define DIST_THRESH 2
 
-void display_LED(LedState *ledState, uint8_t reading, uint8_t yellow, uint8_t red) 
+uint8_t display_LED(LedState *ledState, uint8_t reading, uint8_t yellow, uint8_t red) 
 {   
     uint8_t oldLedState = ledState->state;
     
@@ -49,33 +48,18 @@ void display_LED(LedState *ledState, uint8_t reading, uint8_t yellow, uint8_t re
     }        
     
     // If the led state hasn't been changed
-    if (ledState->state == oldLedState && oldLedState != DISP_STATE_OFF) {
-        // Turn the light off if we're over the threshold
-        if (ledState->turnoffCounter >= LED_TIMER_OFF_THRESH) {
-            ledState->offState = ledState->state;
-            ledState->offReading = reading;
-            ledState->state = DISP_STATE_OFF;
-        }
-        // Otherwise increment the counter
-        else
-            ledState->turnoffCounter++;
-    } 
+    if (ledState->state == oldLedState)
+        ledState->turnoffCounter++;
     
     // Only do something if the led state has changed
     if (ledState->state != oldLedState) {
-        // If the state is off, set the lights off
-        if (ledState->state == DISP_STATE_OFF)
-            TLC5926_SetLights(LIGHT_OFF);
-        // If the state has changed, reset the counter & update lights
-        else {
-            ledState->turnoffCounter = 0;
-            if (ledState->state == DISP_STATE_RED)
-                TLC5926_SetLights(LIGHT_RED);
-            else if (ledState->state == DISP_STATE_YELLOW)
-                TLC5926_SetLights(LIGHT_YELLOW);
-            else if (ledState->state == DISP_STATE_GREEN)
-                TLC5926_SetLights(LIGHT_GREEN);
-        }
+        ledState->turnoffCounter = 0;
+        if (ledState->state == DISP_STATE_RED)
+            TLC5926_SetLights(LIGHT_RED);
+        else if (ledState->state == DISP_STATE_YELLOW)
+            TLC5926_SetLights(LIGHT_YELLOW);
+        else if (ledState->state == DISP_STATE_GREEN)
+            TLC5926_SetLights(LIGHT_GREEN);
     }
 }
 

@@ -315,12 +315,26 @@ void main()
         }
         // In the display state, drive the display as normal
         else if (stateVar == MAIN_STATE_DISPLAY)
-        {
+        {           
             // Update the display
-            //if (state.newReading == true)
-            //    display_LED(&led_state, state.reading, 
-            //          (uint8_t) db.sdb.rangePointYellow,
-            //          (uint8_t) db.sdb.rangePointRed);
+            if (state.newReading == true)
+            {
+                display_LED(&led_state, state.reading, 
+                      (uint8_t) db.sdb.rangePointYellow,
+                      (uint8_t) db.sdb.rangePointRed);
+                
+                #define LED_TIMER_OFF_THRESH 25
+
+                // If we've exceeded the turnoff counter then
+                // save the current state, and transition to power saving.
+                if (led_state.turnoffCounter > LED_TIMER_OFF_THRESH)
+                {
+                    led_state.offState = led_state.state;
+                    led_state.offReading = state.reading;
+                    led_state.state = DISP_STATE_OFF;
+                    enter_powersaving(&stateVar, &cIndex, &psReading);
+                }
+            }
             
             HCSR04_Trigger(false);
             DELAY_MS(HCSR04_TRIG_DELAY_MIN, false);
