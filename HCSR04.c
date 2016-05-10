@@ -35,6 +35,9 @@
 void HCSR04_Trigger(bool power_saving) {
     //Send at least a 10uS pulse on trigger line
     PIN_US_TRIGGER = 1; //high
-    DELAY_US(15, power_saving);
+    if (power_saving)
+        __delay_us(1);
+    else
+        __delay_us(15);
     PIN_US_TRIGGER = 0; //low
 }

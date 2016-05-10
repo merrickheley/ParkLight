@@ -201,6 +201,11 @@ void interrupt ISR(void)
 #define HCSR04_TRIG_DELAY_MIN       200
 #define HCSR04_TRIG_DELAY_SLOW      1000
 
+#define DELAY_SCALING_FACTOR 32
+
+#define HCSR04_TRIG_DELAY_PWRSAVE_MIN  (HCSR04_TRIG_DELAY_MIN/DELAY_SCALING_FACTOR)
+#define HCSR04_TRIG_DELAY_PWRSAVE_SLOW (HCSR04_TRIG_DELAY_SLOW/DELAY_SCALING_FACTOR)
+
 void enter_powersaving(uint8_t *stateVar, uint8_t *cIndex, uint8_t *psReading)
 {
     *cIndex = 0;
@@ -208,7 +213,7 @@ void enter_powersaving(uint8_t *stateVar, uint8_t *cIndex, uint8_t *psReading)
     TLC5926_SetLights(LIGHT_OFF);
     SET_CLOCK(CLOCK_INTERNAL);
     HCSR04_Trigger(true);
-    DELAY_MS(HCSR04_TRIG_DELAY_SLOW, true);
+    __delay_ms(HCSR04_TRIG_DELAY_PWRSAVE_SLOW);
     *stateVar = MAIN_STATE_POWERSAVING;
 }
 
@@ -228,7 +233,7 @@ void enter_display(uint8_t *stateVar)
 {
     SET_CLOCK(CLOCK_EXTERNAL);
     HCSR04_Trigger(false);
-    DELAY_MS(HCSR04_TRIG_DELAY_MIN, false);
+    __delay_ms(HCSR04_TRIG_DELAY_MIN);
     *stateVar = MAIN_STATE_DISPLAY;
 }
 
@@ -281,7 +286,7 @@ void main()
             else
             {
                 HCSR04_Trigger(true);
-                DELAY_MS(HCSR04_TRIG_DELAY_SLOW, true);
+                __delay_ms(HCSR04_TRIG_DELAY_PWRSAVE_SLOW);
             }
         }
         else if (stateVar == MAIN_STATE_CALIBRATION)
@@ -297,7 +302,7 @@ void main()
                     blink_light(LIGHT_RED, LIGHT_FLASHES);
                 }
                 // If the yellow button was pressed.
-                if (calibState = CALIB_STATE_YELLOW) {
+                if (calibState == CALIB_STATE_YELLOW) {
                     db.sdb.rangePointYellow = fastMedian5(readings);
                     sprintf(buf, "P YEL: %d\r\n", db.sdb.rangePointYellow);
                     UART_write_text(buf);
@@ -310,7 +315,7 @@ void main()
             else
             {
                 HCSR04_Trigger(false);
-                DELAY_MS(HCSR04_TRIG_DELAY_MIN, false);
+                __delay_ms(HCSR04_TRIG_DELAY_MIN);
             }                   
         }
         // In the display state, drive the display as normal
@@ -337,7 +342,7 @@ void main()
             }
             
             HCSR04_Trigger(false);
-            DELAY_MS(HCSR04_TRIG_DELAY_MIN, false);
+            __delay_ms(HCSR04_TRIG_DELAY_MIN);
         }
         
         // Clear the new reading after we drive the state machine

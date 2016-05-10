@@ -41,8 +41,4 @@
 #define DISP_STATE_YELLOW            1
 #define DISP_STATE_RED               2
 
-// MACRO for delays dependent on power_saving_mode
-#define DELAY_MS(X,PWR_SAVING_MODE) (PWR_SAVING_MODE ? __delay_ms(X/32) : __delay_ms(X))
-#define DELAY_US(X,PWR_SAVING_MODE) (PWR_SAVING_MODE ? __delay_us(X/32) : __delay_us(X))
-
 #endif	/* CONSTANTS_H */
