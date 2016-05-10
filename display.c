@@ -18,7 +18,7 @@
 
 #define DIST_THRESH 2
 
-uint8_t display_LED(LedState *ledState, uint8_t reading, uint8_t yellow, uint8_t red) 
+void display_LED(LedState *ledState, uint8_t reading, uint8_t yellow, uint8_t red) 
 {   
     uint8_t oldLedState = ledState->state;
     
