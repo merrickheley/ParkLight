@@ -63,9 +63,9 @@ char UART_read()
     return RCREG;
 }
 
-void UART_read_text(char *output, unsigned int length)
-{
-    unsigned int i;
-    for(i = 0; i < length; i++)
-        output[i] = UART_read();
-}
+//void UART_read_text(char *output, unsigned int length)
+//{
+//    unsigned int i;
+//    for(i = 0; i < length; i++)
+//        output[i] = UART_read();
+//}
