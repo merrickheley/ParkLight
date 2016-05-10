@@ -212,14 +212,14 @@ void enter_powersaving(uint8_t *stateVar, uint8_t *cIndex, uint8_t *psReading)
     *stateVar = MAIN_STATE_POWERSAVING;
 }
 
-void enter_calibration(uint8_t *stateVar, uint8_t *cIndex, State *state, 
+void enter_calibration(uint8_t *stateVar, uint8_t *cIndex, volatile State *state, 
         uint8_t *calibState)
 {
     *cIndex = 0;
     if (state->setRed == true)
         *calibState = CALIB_STATE_RED;
     else
-        &calibState = CALIB_STATE_YELLOW;
+        *calibState = CALIB_STATE_YELLOW;
     SET_CLOCK(CLOCK_EXTERNAL);
     *stateVar = MAIN_STATE_CALIBRATION;
 }
@@ -276,7 +276,7 @@ void main()
             
             // If the reading has been set and the threshold has been met
             if (psReading > 0 && absdiff(state.reading, psReading) >= POWER_SAVING_COUNTER_TRESH)
-                enter_display(stateVar);
+                enter_display(&stateVar);
             // Otherwise trigger the HCSR04
             else
             {
