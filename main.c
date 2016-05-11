@@ -262,6 +262,10 @@ void main()
             UART_write_text(buf);
             circular_increment_counter(&cIndex, FILTER_LEN);
             // Clear new reading at end of while loop
+            if(stateVar != MAIN_STATE_DISPLAY) 
+            {
+                state.newReading = false;
+            }
         }
         
         // If a calibration button has been pressed reset the circular buffer
@@ -339,13 +343,11 @@ void main()
                     led_state.state = DISP_STATE_OFF;
                     enter_powersaving(&stateVar, &cIndex, &psReading);
                 }
+                state.newReading = false;
             }
             
             HCSR04_Trigger(false);
             __delay_ms(HCSR04_TRIG_DELAY_MIN);
         }
-        
-        // Clear the new reading after we drive the state machine
-        state.newReading = false;
     }
 }
