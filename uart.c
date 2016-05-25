@@ -9,13 +9,13 @@
 
 #include "constants.h"
 
-char UART_init(const long int baudrate, bool transmit, bool receive)
+char UART_init(const long int baudrate, const long int clock, bool transmit, bool receive)
 {
     unsigned int x;
-    x = (_XTAL_FREQ - baudrate*64)/(baudrate*64);   //SPBRG for Low Baud Rate
+    x = (clock - baudrate*64)/(baudrate*64);   //SPBRG for Low Baud Rate
     if(x>255)                                       //If High Baud Rage Required
     {
-        x = (_XTAL_FREQ - baudrate*16)/(baudrate*16); //SPBRG for High Baud Rate
+        x = (clock - baudrate*16)/(baudrate*16); //SPBRG for High Baud Rate
         BRGH = 1;                                     //Setting High Baud Rate
     }
     if(x<256)

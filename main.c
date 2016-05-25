@@ -48,6 +48,9 @@ LedState led_state = { 0 };
 #define CLOCK_EXTERNAL 0b00
 #define SET_CLOCK(state) (OSCCONbits.SCS = state)
 
+#define BAUD_RATE_FAST  4800
+#define BAUD_RATE_SLOW  300
+
 void init(void) 
 {
     // Power Saving mode is off by default
@@ -113,8 +116,7 @@ void init(void)
     
     TLC5926_init();
     
-    // Baud rates above 19200 didn't work
-    UART_init(19200, true, false);
+    UART_init(BAUD_RATE_FAST, _XTAL_FREQ, true, false);
     
     // Drive it low to turn LED's on.
     PIN_LED_OE = IO_LOW;
@@ -215,6 +217,7 @@ void enter_powersaving(uint8_t *stateVar, uint8_t *cIndex, uint8_t *psReading)
     HCSR04_Trigger(true);
     __delay_ms(HCSR04_TRIG_DELAY_PWRSAVE_SLOW);
     *stateVar = MAIN_STATE_POWERSAVING;
+    UART_init(BAUD_RATE_SLOW, _XTAL_FREQ_INTERNAL, true, false);
 }
 
 void enter_calibration(uint8_t *stateVar, uint8_t *cIndex, volatile State *state, 
@@ -227,6 +230,7 @@ void enter_calibration(uint8_t *stateVar, uint8_t *cIndex, volatile State *state
         *calibState = CALIB_STATE_YELLOW;
     SET_CLOCK(CLOCK_EXTERNAL);
     *stateVar = MAIN_STATE_CALIBRATION;
+    UART_init(BAUD_RATE_FAST, _XTAL_FREQ, true, false);
 }
 
 void enter_display(uint8_t *stateVar)
@@ -235,6 +239,7 @@ void enter_display(uint8_t *stateVar)
     HCSR04_Trigger(false);
     __delay_ms(HCSR04_TRIG_DELAY_MIN);
     *stateVar = MAIN_STATE_DISPLAY;
+    UART_init(BAUD_RATE_FAST, _XTAL_FREQ, true, false);
 }
 
 void main()
@@ -290,6 +295,7 @@ void main()
             // Otherwise trigger the HCSR04
             else
             {
+                UART_write_text("TRIG\r\n");
                 HCSR04_Trigger(true);
                 __delay_ms(HCSR04_TRIG_DELAY_PWRSAVE_SLOW);
             }

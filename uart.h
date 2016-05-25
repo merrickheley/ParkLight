@@ -10,7 +10,7 @@
 
 #include <stdbool.h>
 
-char UART_init(const long int baudrate, bool transmit, bool receive);
+char UART_init(const long int baudrate,  const long int clock, bool transmit, bool receive);
 void UART_write_text(char *text);
 char UART_data_ready();
 //void UART_read_text(char *output, unsigned int length);
