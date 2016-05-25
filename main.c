@@ -245,6 +245,7 @@ void main()
     uint8_t stateVar = MAIN_STATE_DISPLAY;
     uint8_t calibState = CALIB_STATE_RED;
     uint8_t psReading = 0;
+    uint8_t temp = 0;
     init();
 
     TLC5926_SetLights(LIGHT_RED);
@@ -298,19 +299,40 @@ void main()
             // Wait for the filter to fill
             if (cIndex == (FILTER_LEN-1))
             {
+#define CALIB_DISTANCE  10
                 // If the red button was pressed.
                 if (calibState == CALIB_STATE_RED) {
-                    db.sdb.rangePointRed = fastMedian5(readings);
-                    sprintf(buf, "P RED: %d\r\n", db.sdb.rangePointRed);
-                    UART_write_text(buf);
-                    blink_light(LIGHT_RED, LIGHT_FLASHES);
+                    temp = fastMedian5(readings);
+                    // Check if the distance is outside of the calib range from 
+                    // yellow
+                    if (absdiff(db.sdb.rangePointYellow, temp) > CALIB_DISTANCE) {
+                        db.sdb.rangePointRed = temp;
+                        sprintf(buf, "P RED: %d\r\n", db.sdb.rangePointRed);
+                        UART_write_text(buf);
+                        blink_light(LIGHT_GREEN, LIGHT_FLASHES);
+                    }
+                    else {
+                        sprintf(buf, "PF RED: %d %d\r\n", db.sdb.rangePointYellow, temp);
+                        UART_write_text(buf);
+                        blink_light(LIGHT_RED, LIGHT_FLASHES);
+                    }
                 }
                 // If the yellow button was pressed.
                 if (calibState == CALIB_STATE_YELLOW) {
-                    db.sdb.rangePointYellow = fastMedian5(readings);
-                    sprintf(buf, "P YEL: %d\r\n", db.sdb.rangePointYellow);
-                    UART_write_text(buf);
-                    blink_light(LIGHT_YELLOW, LIGHT_FLASHES);
+                    temp = fastMedian5(readings);
+                    // Check if the distance is outside of the calib range from 
+                    // red
+                    if (absdiff(db.sdb.rangePointYellow, temp) > CALIB_DISTANCE) {
+                        db.sdb.rangePointYellow = temp;
+                        sprintf(buf, "P YEL: %d\r\n", db.sdb.rangePointRed);
+                        UART_write_text(buf);
+                        blink_light(LIGHT_GREEN, LIGHT_FLASHES);
+                    }
+                    else {
+                        sprintf(buf, "PF YEL: %d %d\r\n", db.sdb.rangePointYellow, temp);
+                        UART_write_text(buf);
+                        blink_light(LIGHT_RED, LIGHT_FLASHES);
+                    }
                 }
                 db_save();
                 enter_powersaving(&stateVar, &cIndex, &psReading);
