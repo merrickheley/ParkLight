@@ -191,9 +191,10 @@ void interrupt ISR(void)
 #define LIGHT_FLASHES 5
 #define BUFSIZE 50
 
-#define MAIN_STATE_POWERSAVING      0
-#define MAIN_STATE_CALIBRATION      1
-#define MAIN_STATE_DISPLAY          2
+#define MAIN_STATE_POWERSAVING      0 // powersave is 31KHz internal
+#define MAIN_STATE_READING          1 // reading is 500KHz internal
+#define MAIN_STATE_CALIBRATION      2
+#define MAIN_STATE_DISPLAY          3 // calibration/display are at 4MHz external
 
 #define CALIB_STATE_RED             0
 #define CALIB_STATE_YELLOW          1
@@ -203,21 +204,34 @@ void interrupt ISR(void)
 #define HCSR04_TRIG_DELAY_MIN       200
 #define HCSR04_TRIG_DELAY_SLOW      1000
 
-#define DELAY_SCALING_FACTOR 32
+#define DELAY_SCALING_FACTOR_READING 8
+#define DELAY_SCALING_FACTOR_PWRSAVE 128
 
-#define HCSR04_TRIG_DELAY_PWRSAVE_MIN  (HCSR04_TRIG_DELAY_MIN/DELAY_SCALING_FACTOR)
-#define HCSR04_TRIG_DELAY_PWRSAVE_SLOW (HCSR04_TRIG_DELAY_SLOW/DELAY_SCALING_FACTOR)
+#define HCSR04_TRIG_DELAY_READING_MIN  (HCSR04_TRIG_DELAY_SLOW/DELAY_SCALING_FACTOR_READING)
+#define HCSR04_TRIG_DELAY_READING_SLOW (HCSR04_TRIG_DELAY_SLOW/DELAY_SCALING_FACTOR_READING)
+#define HCSR04_TRIG_DELAY_PWRSAVE_MIN  (HCSR04_TRIG_DELAY_MIN/DELAY_SCALING_FACTOR_PWRSAVE)
+#define HCSR04_TRIG_DELAY_PWRSAVE_SLOW (HCSR04_TRIG_DELAY_SLOW/DELAY_SCALING_FACTOR_PWRSAVE)
 
 void enter_powersaving(uint8_t *stateVar, uint8_t *cIndex, uint8_t *psReading)
 {
+    TLC5926_SetLights(LIGHT_OFF);
+    OSCCONbits.IRCF = 0b0000; // 50KHz Internal
+    SET_CLOCK(CLOCK_INTERNAL);
+    __delay_ms(HCSR04_TRIG_DELAY_PWRSAVE_MIN);
+    *stateVar = MAIN_STATE_POWERSAVING;
+    UART_init(BAUD_RATE_SLOW, _XTAL_FREQ_PWRSAVE, true, false);
+}
+
+void enter_reading(uint8_t *stateVar, uint8_t *cIndex, uint8_t *psReading) 
+{
     *cIndex = 0;
     *psReading = 0;
-    TLC5926_SetLights(LIGHT_OFF);
+    OSCCONbits.IRCF = 0b0111; // 500KHz Internal
     SET_CLOCK(CLOCK_INTERNAL);
     HCSR04_Trigger(true);
-    __delay_ms(HCSR04_TRIG_DELAY_PWRSAVE_SLOW);
-    *stateVar = MAIN_STATE_POWERSAVING;
-    UART_init(BAUD_RATE_SLOW, _XTAL_FREQ_INTERNAL, true, false);
+    __delay_ms(HCSR04_TRIG_DELAY_READING_MIN);
+    *stateVar = MAIN_STATE_READING;
+    UART_init(BAUD_RATE_SLOW, _XTAL_FREQ_READING, true, false);
 }
 
 void enter_calibration(uint8_t *stateVar, uint8_t *cIndex, volatile State *state, 
@@ -283,7 +297,7 @@ void main()
             state.setYellow = false;
         }
         
-        if (stateVar == MAIN_STATE_POWERSAVING)
+        if (stateVar == MAIN_STATE_READING)
         {
             // Wait for the filter to fill for the first time
             if (cIndex == (FILTER_LEN-1) && psReading == 0)
@@ -297,7 +311,7 @@ void main()
             {
                 UART_write_text("TRIG\r\n");
                 HCSR04_Trigger(true);
-                __delay_ms(HCSR04_TRIG_DELAY_PWRSAVE_SLOW);
+                __delay_ms(HCSR04_TRIG_DELAY_READING_MIN);
             }
         }
         else if (stateVar == MAIN_STATE_CALIBRATION)
@@ -305,7 +319,7 @@ void main()
             // Wait for the filter to fill
             if (cIndex == (FILTER_LEN-1))
             {
-#define CALIB_DISTANCE  10
+                #define CALIB_DISTANCE  10
                 // If the red button was pressed.
                 if (calibState == CALIB_STATE_RED) {
                     temp = fastMedian5(readings);
@@ -376,6 +390,14 @@ void main()
             
             HCSR04_Trigger(false);
             __delay_ms(HCSR04_TRIG_DELAY_MIN);
-        }
+        } 
+        // If we are in power saving mode and a time has been reached, 
+        // switch to reading mode in order to check for changes
+        else if (stateVar == MAIN_STATE_POWERSAVING) 
+        {
+            // block for 1 second and then enter_reading
+            __delay_ms(HCSR04_TRIG_DELAY_PWRSAVE_SLOW); // This should be 1000ms
+            enter_reading(&stateVar, &cIndex, &psReading);
+        }    
     }
 }
