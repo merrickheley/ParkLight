@@ -42,8 +42,6 @@ typedef struct Global_State {
 volatile State state = { 0 }; 
 LedState led_state = { 0 };
 
-#define IS_POWER_SAVING(led_state) (led_state.state == DISP_STATE_OFF)
-
 #define CLOCK_INTERNAL 0b10
 #define CLOCK_EXTERNAL 0b00
 #define SET_CLOCK(state) (OSCCONbits.SCS = state)
@@ -215,6 +213,11 @@ void interrupt ISR(void)
 void enter_powersaving(uint8_t *stateVar, uint8_t *cIndex, uint8_t *psReading)
 {
     TLC5926_SetLights(LIGHT_OFF);
+    
+    char buf[BUFSIZE];
+    sprintf(buf, "Enter Power Saving\r\n");
+    UART_write_text(buf);
+    
     OSCCONbits.IRCF = 0b0000; // 50KHz Internal
     SET_CLOCK(CLOCK_INTERNAL);
     __delay_ms(HCSR04_TRIG_DELAY_PWRSAVE_MIN);
@@ -243,6 +246,11 @@ void enter_calibration(uint8_t *stateVar, uint8_t *cIndex, volatile State *state
     else
         *calibState = CALIB_STATE_YELLOW;
     SET_CLOCK(CLOCK_EXTERNAL);
+    
+    char buf[BUFSIZE];
+    sprintf(buf, "Enter calibration\r\n");
+    UART_write_text(buf);
+    
     *stateVar = MAIN_STATE_CALIBRATION;
     UART_init(BAUD_RATE_FAST, _XTAL_FREQ, true, false);
 }
@@ -250,6 +258,11 @@ void enter_calibration(uint8_t *stateVar, uint8_t *cIndex, volatile State *state
 void enter_display(uint8_t *stateVar)
 {
     SET_CLOCK(CLOCK_EXTERNAL);
+    
+    char buf[BUFSIZE];
+    sprintf(buf, "Enter display\r\n");
+    UART_write_text(buf);
+    
     HCSR04_Trigger(false);
     __delay_ms(HCSR04_TRIG_DELAY_MIN);
     *stateVar = MAIN_STATE_DISPLAY;
@@ -306,7 +319,8 @@ void main()
             // If the reading has been set and the threshold has been met
             if (psReading > 0 && absdiff(state.reading, psReading) >= POWER_SAVING_COUNTER_TRESH)
                 enter_display(&stateVar);
-            // Otherwise trigger the HCSR04
+            else if(psReading > 0) 
+                enter_powersaving(&stateVar, &cIndex, &psReading);
             else
             {
                 UART_write_text("TRIG\r\n");
