@@ -203,7 +203,7 @@ void interrupt ISR(void)
 #define HCSR04_TRIG_DELAY_SLOW      1000
 
 #define DELAY_SCALING_FACTOR_READING 8
-#define DELAY_SCALING_FACTOR_PWRSAVE 128
+#define DELAY_SCALING_FACTOR_PWRSAVE 200 // Should be 128 but is changed to 200 to allow dividing into integers
 
 #define HCSR04_TRIG_DELAY_READING_MIN  (HCSR04_TRIG_DELAY_MIN/DELAY_SCALING_FACTOR_READING)
 #define HCSR04_TRIG_DELAY_READING_SLOW (HCSR04_TRIG_DELAY_SLOW/DELAY_SCALING_FACTOR_READING)
@@ -213,12 +213,16 @@ void interrupt ISR(void)
 void enter_powersaving(uint8_t *stateVar, uint8_t *cIndex, uint8_t *psReading)
 {
     TLC5926_SetLights(LIGHT_OFF);
+    __delay_ms(HCSR04_TRIG_DELAY_READING_MIN);
+    TLC5926_SetLights(LIGHT_RED);
+    __delay_ms(HCSR04_TRIG_DELAY_READING_MIN);
+    TLC5926_SetLights(LIGHT_OFF);
     
     char buf[BUFSIZE];
     sprintf(buf, "Enter Power Saving\r\n");
     UART_write_text(buf);
     
-    OSCCONbits.IRCF = 0b0000; // 50KHz Internal
+    OSCCONbits.IRCF = 0b0000; // 31KHz LF Internal
     SET_CLOCK(CLOCK_INTERNAL);
     __delay_ms(HCSR04_TRIG_DELAY_PWRSAVE_MIN);
     *stateVar = MAIN_STATE_POWERSAVING;
@@ -229,12 +233,20 @@ void enter_reading(uint8_t *stateVar, uint8_t *cIndex, uint8_t *psReading)
 {
     *cIndex = 0;
     *psReading = 0;
+    
     OSCCONbits.IRCF = 0b0111; // 500KHz Internal
     SET_CLOCK(CLOCK_INTERNAL);
+    
     HCSR04_Trigger(true);
     __delay_ms(HCSR04_TRIG_DELAY_READING_MIN);
     *stateVar = MAIN_STATE_READING;
     UART_init(BAUD_RATE_SLOW, _XTAL_FREQ_READING, true, false);
+    
+    TLC5926_SetLights(LIGHT_OFF);
+    __delay_ms(HCSR04_TRIG_DELAY_READING_MIN);
+    TLC5926_SetLights(LIGHT_YELLOW);
+    __delay_ms(HCSR04_TRIG_DELAY_READING_MIN);
+    TLC5926_SetLights(LIGHT_OFF);
 }
 
 void enter_calibration(uint8_t *stateVar, uint8_t *cIndex, volatile State *state, 
@@ -265,6 +277,7 @@ void enter_display(uint8_t *stateVar)
     
     HCSR04_Trigger(false);
     __delay_ms(HCSR04_TRIG_DELAY_MIN);
+    
     *stateVar = MAIN_STATE_DISPLAY;
     UART_init(BAUD_RATE_FAST, _XTAL_FREQ, true, false);
 }
@@ -402,8 +415,12 @@ void main()
                 state.newReading = false;
             }
             
-            HCSR04_Trigger(false);
-            __delay_ms(HCSR04_TRIG_DELAY_MIN);
+            if(stateVar != MAIN_STATE_POWERSAVING) {
+                HCSR04_Trigger(false);
+                __delay_ms(HCSR04_TRIG_DELAY_MIN);
+            } else {
+                __delay_ms(HCSR04_TRIG_DELAY_PWRSAVE_MIN);
+            }
         } 
         // If we are in power saving mode and a time has been reached, 
         // switch to reading mode in order to check for changes
