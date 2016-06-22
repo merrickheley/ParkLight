@@ -213,11 +213,6 @@ void interrupt ISR(void)
 void enter_powersaving(uint8_t *stateVar, uint8_t *cIndex, uint8_t *psReading)
 {
     TLC5926_SetLights(LIGHT_OFF);
-    __delay_ms(HCSR04_TRIG_DELAY_READING_MIN);
-    TLC5926_SetLights(LIGHT_RED);
-    __delay_ms(HCSR04_TRIG_DELAY_READING_MIN);
-    TLC5926_SetLights(LIGHT_OFF);
-    
     char buf[BUFSIZE];
     sprintf(buf, "Enter Power Saving\r\n");
     UART_write_text(buf);
@@ -241,12 +236,6 @@ void enter_reading(uint8_t *stateVar, uint8_t *cIndex, uint8_t *psReading)
     __delay_ms(HCSR04_TRIG_DELAY_READING_MIN);
     *stateVar = MAIN_STATE_READING;
     UART_init(BAUD_RATE_SLOW, _XTAL_FREQ_READING, true, false);
-    
-    TLC5926_SetLights(LIGHT_OFF);
-    __delay_ms(HCSR04_TRIG_DELAY_READING_MIN);
-    TLC5926_SetLights(LIGHT_YELLOW);
-    __delay_ms(HCSR04_TRIG_DELAY_READING_MIN);
-    TLC5926_SetLights(LIGHT_OFF);
 }
 
 void enter_calibration(uint8_t *stateVar, uint8_t *cIndex, volatile State *state, 
