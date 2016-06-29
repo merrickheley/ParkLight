@@ -116,8 +116,12 @@ void init(void)
     
     UART_init(BAUD_RATE_FAST, _XTAL_FREQ, true, false);
     
+    // Enable RC5 to TLC
+    PIN_TLC_ENABLE = 1;
+    
     // Drive it low to turn LED's on.
     PIN_LED_OE = IO_LOW;
+   
 }
 
 void save_reading(void)
@@ -236,11 +240,21 @@ void enter_reading(uint8_t *stateVar, uint8_t *cIndex, uint8_t *psReading)
     __delay_ms(HCSR04_TRIG_DELAY_READING_MIN);
     *stateVar = MAIN_STATE_READING;
     UART_init(BAUD_RATE_SLOW, _XTAL_FREQ_READING, true, false);
+    
+    // Disable LED's on TLC
+    PIN_LED_OE = IO_HIGH;
+    // Disable TLC via PIN_TLC_ENABLE
+    PIN_TLC_ENABLE = 0;
 }
 
 void enter_calibration(uint8_t *stateVar, uint8_t *cIndex, volatile State *state, 
         uint8_t *calibState)
 {
+    // Enable TLC
+    PIN_TLC_ENABLE = 1;
+    // Re-enable LED's on TLC
+    PIN_LED_OE = IO_LOW;
+
     *cIndex = 0;
     if (state->setRed == true)
         *calibState = CALIB_STATE_RED;
@@ -258,6 +272,11 @@ void enter_calibration(uint8_t *stateVar, uint8_t *cIndex, volatile State *state
 
 void enter_display(uint8_t *stateVar)
 {
+    // Enable TLC
+    PIN_TLC_ENABLE = 1;
+    // Re-enable LED's on TLC
+    PIN_LED_OE = IO_LOW;
+    
     SET_CLOCK(CLOCK_EXTERNAL);
     
     char buf[BUFSIZE];

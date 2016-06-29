@@ -16,6 +16,9 @@
 // LED Pins
 #define PIN_LED_0               RC6
 
+// Test pin to TLC5926
+#define PIN_TLC_ENABLE          RC5
+
 // HCSR04 Pins
 #define PIN_US_TRIGGER          RC2
 #define PIN_US_ECHO             RA2
