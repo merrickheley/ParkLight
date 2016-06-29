@@ -61,7 +61,7 @@ void init(void)
 
     INTCONbits.GIE = 1; // Enable global interrupts
     INTCONbits.PEIE = 1; // Enable peripheral interrupts
-    INTCONbits.T0IE = 1;
+    INTCONbits.T0IE = 1; // Enable timer interrupts
     
     // Enable IOC
     INTCONbits.IOCIE = 1;
@@ -77,28 +77,12 @@ void init(void)
 
     // Enable each timer
     INTCONbits.TMR0IE = 1;
-    PIE1bits.TMR1IE = 1; 
-    
-    //PIE1bits.TMR2IE = 1;
-    //PIE3bits.TMR4IE = 1;
-    //PIE3bits.TMR6IE = 1;
     
     // Weak pull-up enabled on ECHO pin
     WPUAbits.WPUA2 = 1;
     
     // Set timer0 prescaler to 1:1
     OPTION_REG = 0b00000000;
-    
-    // bits 7-6 -> 01 use system clock FOSC, 00 use FOSC/4
-    // bit 5-4 T1CKPS<1:0>: Timer1 Input Clock Prescale Select bits
-    //      11 = 1:8 Prescale value
-    //      10 = 1:4 Prescale value
-    //      01 = 1:2 Prescale value
-    //      00 = 1:1 Prescale value
-    
-    // Set timer 1 prescaler to 1:1 from FOSC (which should be 
-    // the value of the external oscillator)
-    T1CON = 0b01000001; 
     
     TRISA = 0b11111111; // Inputs
     TRISB = 0b11110000; // Inputs
@@ -184,11 +168,6 @@ void interrupt ISR(void)
 
         
         INTCONbits.TMR0IF = 0;
-    }
-    
-    // TIMER 1
-    if (PIR1bits.TMR1IF && PIE1bits.TMR1IE) {    
-        PIR1bits.TMR1IF = 0;    
     }
 }
 
