@@ -54,6 +54,10 @@ void init(void)
     // Power Saving mode is off by default
     OSCCONbits.IRCF = 0b0111; // 500KHz internal oscillator
     SET_CLOCK(CLOCK_EXTERNAL);
+    
+    // Set the time-out period of the WDT
+    WDTCONbits.WDTPS = 0b01010; // 1s typical time-out period
+    WDTCONbits.SWDTEN = 0; // WDT is turned off, therefore no need to periodically clear
 
     INTCONbits.GIE = 1; // Enable global interrupts
     INTCONbits.PEIE = 1; // Enable peripheral interrupts
@@ -223,9 +227,12 @@ void enter_powersaving(uint8_t *stateVar, uint8_t *cIndex, uint8_t *psReading)
     
     OSCCONbits.IRCF = 0b0000; // 31KHz LF Internal
     SET_CLOCK(CLOCK_INTERNAL);
-    __delay_ms(HCSR04_TRIG_DELAY_PWRSAVE_MIN);
     *stateVar = MAIN_STATE_POWERSAVING;
-    UART_init(BAUD_RATE_SLOW, _XTAL_FREQ_PWRSAVE, true, false);
+    
+    // Enter sleep mode
+    WDTCONbits.SWDTEN = 1; // Enable WDT to resume from sleep mode after time-out
+    SLEEP(); // XC8 compiler version of the asm sleep command
+    WDTCONbits.SWDTEN = 0; // Disable WDT for normal operation
 }
 
 void enter_reading(uint8_t *stateVar, uint8_t *cIndex, uint8_t *psReading) 
@@ -434,8 +441,6 @@ void main()
         // switch to reading mode in order to check for changes
         else if (stateVar == MAIN_STATE_POWERSAVING) 
         {
-            // block for 1 second and then enter_reading
-            __delay_ms(HCSR04_TRIG_DELAY_PWRSAVE_SLOW); // This should be 1000ms
             enter_reading(&stateVar, &cIndex, &psReading);
         }    
     }
