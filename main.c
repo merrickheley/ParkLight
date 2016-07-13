@@ -205,8 +205,8 @@ void enter_powersaving(uint8_t *stateVar, uint8_t *cIndex, uint8_t *psReading)
     sprintf(buf, "Enter Power Saving\r\n");
     UART_write_text(buf);
     
-    OSCCONbits.IRCF = 0b0000; // 31KHz LF Internal
-    SET_CLOCK(CLOCK_INTERNAL);
+//    OSCCONbits.IRCF = 0b0000; // 31KHz LF Internal
+//    SET_CLOCK(CLOCK_INTERNAL);
     *stateVar = MAIN_STATE_POWERSAVING;
     
     // Enter sleep mode
