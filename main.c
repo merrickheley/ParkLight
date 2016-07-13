@@ -210,9 +210,13 @@ void enter_powersaving(uint8_t *stateVar, uint8_t *cIndex, uint8_t *psReading)
     *stateVar = MAIN_STATE_POWERSAVING;
     
     // Enter sleep mode
+    PIN_ENABLE_HCSR04 = 0;
+    UART_write_text("HC 0\r\n");
     WDTCONbits.SWDTEN = 1; // Enable WDT to resume from sleep mode after time-out
     SLEEP(); // XC8 compiler version of the asm sleep command
     WDTCONbits.SWDTEN = 0; // Disable WDT for normal operation
+    PIN_ENABLE_HCSR04 = 1;
+    UART_write_text("HC 1\r\n");
 }
 
 void enter_reading(uint8_t *stateVar, uint8_t *cIndex, uint8_t *psReading) 
