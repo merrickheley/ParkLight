@@ -125,7 +125,6 @@ void interrupt ISR(void)
     // Edge detected on echo pin
     if (IOCAFbits.IOCAF2)
     {
-        PIN_LED_0 = 1;
 
         // If echo pin input is rising edge
         if (PIN_US_ECHO == IO_HIGH && state.echoHit == false) {
