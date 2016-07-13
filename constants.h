@@ -13,11 +13,9 @@
 #define IO_HIGH                 1
 #define IO_LOW                  0
 
-// LED Pins
-#define PIN_LED_0               RC6
-
-// Test pin to TLC5926
-#define PIN_TLC_ENABLE          RC5
+// Pins to enable peripherals
+#define PIN_ENABLE_TLC5926      RC5
+#define PIN_ENABLE_HCSR04       RC0
 
 // HCSR04 Pins
 #define PIN_US_TRIGGER          RC2
