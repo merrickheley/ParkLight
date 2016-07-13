@@ -100,16 +100,18 @@ void init(void)
     // Initialise the database so that it is populated
     db_init(); 
     
-    TLC5926_init();
+    // Enable RC5 to TLC
+    PIN_ENABLE_TLC5926 = 1;
     
     UART_init(BAUD_RATE_FAST, _XTAL_FREQ, true, false);
+    TLC5926_init();
     
-    // Enable RC5 to TLC
-    PIN_TLC_ENABLE = 1;
     
     // Drive it low to turn LED's on.
     PIN_LED_OE = IO_LOW;
-   
+    
+    // Enable RC0 to HCSR
+    PIN_ENABLE_HCSR04 = 1;
 }
 
 void save_reading(void)
@@ -229,14 +231,14 @@ void enter_reading(uint8_t *stateVar, uint8_t *cIndex, uint8_t *psReading)
     // Disable LED's on TLC
     PIN_LED_OE = IO_HIGH;
     // Disable TLC via PIN_TLC_ENABLE
-    PIN_TLC_ENABLE = 0;
+    PIN_ENABLE_TLC5926 = 0;
 }
 
 void enter_calibration(uint8_t *stateVar, uint8_t *cIndex, volatile State *state, 
         uint8_t *calibState)
 {
     // Enable TLC
-    PIN_TLC_ENABLE = 1;
+    PIN_ENABLE_TLC5926 = 1;
     // Re-enable LED's on TLC
     PIN_LED_OE = IO_LOW;
 
@@ -258,7 +260,7 @@ void enter_calibration(uint8_t *stateVar, uint8_t *cIndex, volatile State *state
 void enter_display(uint8_t *stateVar)
 {
     // Enable TLC
-    PIN_TLC_ENABLE = 1;
+    PIN_ENABLE_TLC5926 = 1;
     // Re-enable LED's on TLC
     PIN_LED_OE = IO_LOW;
     
