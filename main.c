@@ -201,9 +201,7 @@ void interrupt ISR(void)
 void enter_powersaving(uint8_t *stateVar, uint8_t *cIndex, uint8_t *psReading)
 {
     TLC5926_SetLights(LIGHT_OFF);
-    char buf[BUFSIZE];
-    sprintf(buf, "Enter Power Saving\r\n");
-    UART_write_text(buf);
+    UART_write_text("E: PSave\r\n");
     
 //    OSCCONbits.IRCF = 0b0000; // 31KHz LF Internal
 //    SET_CLOCK(CLOCK_INTERNAL);
@@ -232,6 +230,8 @@ void enter_reading(uint8_t *stateVar, uint8_t *cIndex, uint8_t *psReading)
     *stateVar = MAIN_STATE_READING;
     UART_init(BAUD_RATE_SLOW, _XTAL_FREQ_READING, true, false);
     
+    UART_write_text("E: Read\r\n");
+    
     // Disable LED's on TLC
     PIN_LED_OE = IO_HIGH;
     // Disable TLC via PIN_TLC_ENABLE
@@ -253,9 +253,7 @@ void enter_calibration(uint8_t *stateVar, uint8_t *cIndex, volatile State *state
         *calibState = CALIB_STATE_YELLOW;
     SET_CLOCK(CLOCK_EXTERNAL);
     
-    char buf[BUFSIZE];
-    sprintf(buf, "Enter calibration\r\n");
-    UART_write_text(buf);
+    UART_write_text("E: cal\r\n");
     
     *stateVar = MAIN_STATE_CALIBRATION;
     UART_init(BAUD_RATE_FAST, _XTAL_FREQ, true, false);
@@ -270,9 +268,7 @@ void enter_display(uint8_t *stateVar)
     
     SET_CLOCK(CLOCK_EXTERNAL);
     
-    char buf[BUFSIZE];
-    sprintf(buf, "Enter display\r\n");
-    UART_write_text(buf);
+    UART_write_text( "E: disp\r\n");
     
     HCSR04_Trigger(false);
     __delay_ms(HCSR04_TRIG_DELAY_MIN);
