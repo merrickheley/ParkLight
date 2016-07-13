@@ -341,7 +341,7 @@ void main()
             // Wait for the filter to fill
             if (cIndex == (FILTER_LEN-1))
             {
-                #define CALIB_DISTANCE  10
+                #define CALIB_DISTANCE  5
                 // If the red button was pressed.
                 if (calibState == CALIB_STATE_RED) {
                     temp = fastMedian5(readings);
@@ -364,14 +364,14 @@ void main()
                     temp = fastMedian5(readings);
                     // Check if the distance is outside of the calib range from 
                     // red
-                    if (absdiff(db.sdb.rangePointYellow, temp) > CALIB_DISTANCE) {
+                    if (absdiff(db.sdb.rangePointRed, temp) > CALIB_DISTANCE) {
                         db.sdb.rangePointYellow = temp;
-                        sprintf(buf, "P YEL: %d\r\n", db.sdb.rangePointRed);
+                        sprintf(buf, "P YEL: %d\r\n", db.sdb.rangePointYellow);
                         UART_write_text(buf);
                         blink_light(LIGHT_GREEN, LIGHT_FLASHES);
                     }
                     else {
-                        sprintf(buf, "PF YEL: %d %d\r\n", db.sdb.rangePointYellow, temp);
+                        sprintf(buf, "PF YEL: %d %d\r\n", db.sdb.rangePointRed, temp);
                         UART_write_text(buf);
                         blink_light(LIGHT_RED, LIGHT_FLASHES);
                     }
