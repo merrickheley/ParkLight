@@ -45,7 +45,7 @@ char UART_tx_empty()
     return TRMT;
 }
 
-void UART_write_text(char *text)
+void UART_write_text(const char *text)
 {
     int i;
     for(i=0;text[i]!='\0';i++)
