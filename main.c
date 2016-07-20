@@ -171,13 +171,11 @@ void interrupt ISR(void)
     }
 }
 
-
 #define FILTER_LEN 5
 #define LIGHT_FLASHES 5
 #define BUFSIZE 50
 
-#define MAIN_STATE_POWERSAVING      0 // powersave is 31KHz internal
-#define MAIN_STATE_READING          1 // reading is 500KHz internal
+#define MAIN_STATE_PASSIVE          1 // reading is 500KHz internal
 #define MAIN_STATE_CALIBRATION      2
 #define MAIN_STATE_DISPLAY          3 // calibration/display are at 4MHz external
 
@@ -190,33 +188,22 @@ void interrupt ISR(void)
 #define HCSR04_TRIG_DELAY_SLOW      1000
 
 #define DELAY_SCALING_FACTOR_READING 8
-#define DELAY_SCALING_FACTOR_PWRSAVE 200 // Should be 128 but is changed to 200 to allow dividing into integers
 
 #define HCSR04_TRIG_DELAY_READING_MIN  (HCSR04_TRIG_DELAY_MIN/DELAY_SCALING_FACTOR_READING)
 #define HCSR04_TRIG_DELAY_READING_SLOW (HCSR04_TRIG_DELAY_SLOW/DELAY_SCALING_FACTOR_READING)
-#define HCSR04_TRIG_DELAY_PWRSAVE_MIN  (HCSR04_TRIG_DELAY_MIN/DELAY_SCALING_FACTOR_PWRSAVE)
-#define HCSR04_TRIG_DELAY_PWRSAVE_SLOW (HCSR04_TRIG_DELAY_SLOW/DELAY_SCALING_FACTOR_PWRSAVE)
 
-void enter_powersaving(uint8_t *stateVar, uint8_t *cIndex, uint8_t *psReading)
+void app_sleep(void)
 {
-    TLC5926_SetLights(LIGHT_OFF);
     UART_write_text("E: PSave\r\n");
-    
-//    OSCCONbits.IRCF = 0b0000; // 31KHz LF Internal
-//    SET_CLOCK(CLOCK_INTERNAL);
-    *stateVar = MAIN_STATE_POWERSAVING;
-    
     // Enter sleep mode
     PIN_ENABLE_HCSR04 = 0;
-    UART_write_text("HC 0\r\n");
     WDTCONbits.SWDTEN = 1; // Enable WDT to resume from sleep mode after time-out
     SLEEP(); // XC8 compiler version of the asm sleep command
     WDTCONbits.SWDTEN = 0; // Disable WDT for normal operation
     PIN_ENABLE_HCSR04 = 1;
-    UART_write_text("HC 1\r\n");
 }
 
-void enter_reading(uint8_t *stateVar, uint8_t *cIndex, uint8_t *psReading) 
+void enter_passive(uint8_t *stateVar, uint8_t *cIndex, uint8_t *psReading) 
 {
     *cIndex = 0;
     *psReading = 0;
@@ -226,10 +213,10 @@ void enter_reading(uint8_t *stateVar, uint8_t *cIndex, uint8_t *psReading)
     
     HCSR04_Trigger(true);
     __delay_ms(HCSR04_TRIG_DELAY_READING_MIN);
-    *stateVar = MAIN_STATE_READING;
+    *stateVar = MAIN_STATE_PASSIVE;
     UART_init(BAUD_RATE_SLOW, _XTAL_FREQ_READING, true, false);
     
-    UART_write_text("E: Read\r\n");
+    UART_write_text("E: Pas\r\n");
     
     // Disable LED's on TLC
     PIN_LED_OE = IO_HIGH;
@@ -304,7 +291,7 @@ void main()
             UART_write_text(buf);
             circular_increment_counter(&cIndex, FILTER_LEN);
             // Clear new reading at end of while loop
-            if(stateVar != MAIN_STATE_DISPLAY) 
+            if (stateVar != MAIN_STATE_DISPLAY) 
             {
                 state.newReading = false;
             }
@@ -319,7 +306,7 @@ void main()
             state.setYellow = false;
         }
         
-        if (stateVar == MAIN_STATE_READING)
+        if (stateVar == MAIN_STATE_PASSIVE)
         {
             // Wait for the filter to fill for the first time
             if (cIndex == (FILTER_LEN-1) && psReading == 0)
@@ -328,8 +315,12 @@ void main()
             // If the reading has been set and the threshold has been met
             if (psReading > 0 && absdiff(state.reading, psReading) >= POWER_SAVING_COUNTER_THRESH)
                 enter_display(&stateVar);
-            else if(psReading > 0) 
-                enter_powersaving(&stateVar, &cIndex, &psReading);
+            else if (psReading > 0) 
+            {
+                cIndex = 0;
+                psReading = 0;
+                app_sleep();
+            }
             else
             {
                 UART_write_text("TRIG\r\n");
@@ -337,6 +328,7 @@ void main()
                 __delay_ms(HCSR04_TRIG_DELAY_READING_MIN);
             }
         }
+        
         else if (stateVar == MAIN_STATE_CALIBRATION)
         {
             // Wait for the filter to fill
@@ -378,7 +370,7 @@ void main()
                     }
                 }
                 db_save();
-                enter_powersaving(&stateVar, &cIndex, &psReading);
+                enter_passive(&stateVar, &cIndex, &psReading);
             }
             // If filter isn't full, get more values
             else
@@ -406,23 +398,13 @@ void main()
                     led_state.offState = led_state.state;
                     led_state.offReading = curReading;
                     led_state.state = DISP_STATE_OFF;
-                    enter_powersaving(&stateVar, &cIndex, &psReading);
+                    enter_passive(&stateVar, &cIndex, &psReading);
+                    continue;
                 }
                 state.newReading = false;
             }
-            
-            if(stateVar != MAIN_STATE_POWERSAVING) {
-                HCSR04_Trigger(false);
-                __delay_ms(HCSR04_TRIG_DELAY_MIN);
-            } else {
-                __delay_ms(HCSR04_TRIG_DELAY_PWRSAVE_MIN);
-            }
+            HCSR04_Trigger(false);
+            __delay_ms(HCSR04_TRIG_DELAY_MIN);
         } 
-        // If we are in power saving mode and a time has been reached, 
-        // switch to reading mode in order to check for changes
-        else if (stateVar == MAIN_STATE_POWERSAVING) 
-        {
-            enter_reading(&stateVar, &cIndex, &psReading);
-        }    
     }
 }
