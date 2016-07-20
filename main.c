@@ -106,7 +106,6 @@ void init(void)
     UART_init(BAUD_RATE_FAST, _XTAL_FREQ, true, false);
     TLC5926_init();
     
-    
     // Drive it low to turn LED's on.
     PIN_LED_OE = IO_LOW;
     
@@ -284,6 +283,7 @@ void main()
     char buf[BUFSIZE];
     uint8_t stateVar = MAIN_STATE_DISPLAY;
     uint8_t calibState = CALIB_STATE_RED;
+    uint8_t curReading = 0;
     uint8_t psReading = 0;
     uint8_t temp = 0;
     init();
@@ -296,8 +296,9 @@ void main()
         // If there's been a new reading, add it to the circular buffer
         if (state.newReading == true) {
             readings[cIndex] = state.reading;
-            sprintf(buf, "R: %d\r\n", state.reading);
-//            sprintf(buf, "FIL %d %d: %d %d %d %d %d\r\n", cIndex, state.reading, 
+            curReading = readings[cIndex];
+            sprintf(buf, "R: %d\r\n", curReading);
+//            sprintf(buf, "FIL %d %d: %d %d %d %d %d\r\n", cIndex, curReading, 
 //                    readings[0], readings[1], readings[2], 
 //                    readings[3], readings[4]);
             UART_write_text(buf);
@@ -392,7 +393,7 @@ void main()
             // Update the display
             if (state.newReading == true)
             {
-                display_LED(&led_state, state.reading, 
+                display_LED(&led_state, curReading, 
                       (uint8_t) db.sdb.rangePointYellow,
                       (uint8_t) db.sdb.rangePointRed);
                 
@@ -403,7 +404,7 @@ void main()
                 if (led_state.turnoffCounter > LED_TIMER_OFF_THRESH)
                 {
                     led_state.offState = led_state.state;
-                    led_state.offReading = state.reading;
+                    led_state.offReading = curReading;
                     led_state.state = DISP_STATE_OFF;
                     enter_powersaving(&stateVar, &cIndex, &psReading);
                 }
