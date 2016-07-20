@@ -2,7 +2,7 @@
 #define	CONFIG_H
 
 #pragma config FOSC = XT        // Oscillator Selection (XT : Medium power crystal on OSC1/OSC2)
-#pragma config WDTE = SWDTEN    // WDT controlled by the SWDTEN bit in the WDTCON register  
+#pragma config WDTE = ON        // WDT controlled by the SWDTEN bit in the WDTCON register  
 #pragma config PWRTE = OFF      // Power-up Timer Enable (PWRT disabled)    
 #pragma config MCLRE = OFF      // MCLR Pin Function Select (MCLR/VPP pin function is digital input)    
 #pragma config CP = OFF         // Flash Program Memory Code Protection (Program memory code protection is disabled)    

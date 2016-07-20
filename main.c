@@ -57,7 +57,6 @@ void init(void)
     
     // Set the time-out period of the WDT
     WDTCONbits.WDTPS = 0b01010; // 1s typical time-out period
-    WDTCONbits.SWDTEN = 0; // WDT is turned off, therefore no need to periodically clear
 
     INTCONbits.GIE = 1; // Enable global interrupts
     INTCONbits.PEIE = 1; // Enable peripheral interrupts
@@ -111,6 +110,8 @@ void init(void)
     
     // Enable RC0 to HCSR
     PIN_ENABLE_HCSR04 = 1;
+    
+    UART_write_text("BOOT!\r\n");
 }
 
 void save_reading(void)
@@ -197,9 +198,7 @@ void app_sleep(void)
     UART_write_text("E: PSave\r\n");
     // Enter sleep mode
     PIN_ENABLE_HCSR04 = 0;
-    WDTCONbits.SWDTEN = 1; // Enable WDT to resume from sleep mode after time-out
     SLEEP(); // XC8 compiler version of the asm sleep command
-    WDTCONbits.SWDTEN = 0; // Disable WDT for normal operation
     PIN_ENABLE_HCSR04 = 1;
 }
 
@@ -282,6 +281,10 @@ void main()
 
         // If there's been a new reading, add it to the circular buffer
         if (state.newReading == true) {
+            // Bump the watchdog
+            CLRWDT();
+            
+            // Process the reading
             readings[cIndex] = state.reading;
             curReading = readings[cIndex];
             sprintf(buf, "R: %d\r\n", curReading);
