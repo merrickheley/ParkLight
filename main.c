@@ -184,7 +184,7 @@ void interrupt ISR(void)
 #define CALIB_STATE_RED             0
 #define CALIB_STATE_YELLOW          1
 
-#define POWER_SAVING_COUNTER_TRESH  2
+#define POWER_SAVING_COUNTER_THRESH  2
 
 #define HCSR04_TRIG_DELAY_MIN       200
 #define HCSR04_TRIG_DELAY_SLOW      1000
@@ -326,7 +326,7 @@ void main()
                 psReading = fastMedian5(readings);
             
             // If the reading has been set and the threshold has been met
-            if (psReading > 0 && absdiff(state.reading, psReading) >= POWER_SAVING_COUNTER_TRESH)
+            if (psReading > 0 && absdiff(state.reading, psReading) >= POWER_SAVING_COUNTER_THRESH)
                 enter_display(&stateVar);
             else if(psReading > 0) 
                 enter_powersaving(&stateVar, &cIndex, &psReading);
