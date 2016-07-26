@@ -85,13 +85,24 @@ void init(void)
     
     TRISA = 0b11111111; // Inputs
     TRISB = 0b11110000; // Inputs
-    TRISC = 0b00000000; // Outputs
+    TRISC = 0b00000010; // Outputs, except for RC1 as an input.
 
     // Disable analogue inputs. This should set all pins to digital.
     ANSELBbits.ANSB4 = 0;
     ANSELBbits.ANSB5 = 0;
     ANSELAbits.ANSELA = 0x00;
     ANSELCbits.ANSELC = 0x00;
+    
+    // Enable RC1 as analogue input
+    ANSELCbits.ANSC1 = 1;
+    
+    // Configure the ADC for battery
+    ADCON1bits.ADCS = 0b000;            // F_osc/64. Slow as possible.
+    ADCON1bits.ADNREF = 0;              // V_ref- is connected to Vss
+    ADCON1bits.ADPREF = 0;              // V_ref+ is connected to Vdd
+    ADCON1bits.ADFM = 1;                // Right justify A/D result 
+    ADCON0bits.CHS = 0b00101;           // Enable AN5
+    ADCON0bits.ADON = 1;                // Turn on the ADC
     
     // Set outputs to low initially
     PORTC = 0x00; 
@@ -283,6 +294,15 @@ void main()
         if (state.newReading == true) {
             // Bump the watchdog
             CLRWDT();
+            
+            if (ADCON0bits.GO_nDONE == 0)
+            {
+                sprintf(buf, "A: %u\r\n", (ADRESHbits.ADRESH << 8) | ADRESLbits.ADRESL);
+                UART_write_text(buf);
+                
+                PIR1bits.ADIF = 0;
+                ADCON0bits.GO_nDONE = 1;
+            }
             
             // Process the reading
             readings[cIndex] = state.reading;

@@ -16,6 +16,9 @@
 #define PIN_ENABLE_TLC5926      RC5
 #define PIN_ENABLE_HCSR04       RC0
 
+// Analogue battery check
+#define PIN_BATTERY             RC1
+
 // HCSR04 Pins
 #define PIN_US_TRIGGER          RC2
 #define PIN_US_ECHO             RA2
