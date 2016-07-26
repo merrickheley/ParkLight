@@ -52,7 +52,7 @@ LedState led_state = { 0 };
 void init(void) 
 {
     // Power Saving mode is off by default
-    OSCCONbits.IRCF = 0b0111; // 500KHz internal oscillator
+    OSCCONbits.IRCF = CLOCK_BITS_1MHZ; // 1MHz internal oscillator
     SET_CLOCK(CLOCK_EXTERNAL);
     
     // Set the time-out period of the WDT
@@ -188,7 +188,7 @@ void interrupt ISR(void)
 #define HCSR04_TRIG_DELAY_MIN       200
 #define HCSR04_TRIG_DELAY_SLOW      1000
 
-#define DELAY_SCALING_FACTOR_READING 8
+#define DELAY_SCALING_FACTOR_READING 4
 
 #define HCSR04_TRIG_DELAY_READING_MIN  (HCSR04_TRIG_DELAY_MIN/DELAY_SCALING_FACTOR_READING)
 #define HCSR04_TRIG_DELAY_READING_SLOW (HCSR04_TRIG_DELAY_SLOW/DELAY_SCALING_FACTOR_READING)
@@ -207,7 +207,7 @@ void enter_passive(uint8_t *stateVar, uint8_t *cIndex, uint8_t *psReading)
     *cIndex = 0;
     *psReading = 0;
     
-    OSCCONbits.IRCF = 0b0111; // 500KHz Internal
+    OSCCONbits.IRCF = CLOCK_BITS_1MHZ; // 1MHz Internal
     SET_CLOCK(CLOCK_INTERNAL);
     
     HCSR04_Trigger(true);
