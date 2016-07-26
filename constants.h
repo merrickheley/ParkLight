@@ -8,6 +8,8 @@
 
 #define CLOCK_BITS_1MHZ         0b1011
 
+#define ADC_LOW_BATTERY_ALARM   615
+
 #define LED_ON                  1
 #define LED_OFF                 0
 
