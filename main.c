@@ -299,8 +299,8 @@ void main()
             
             if (ADCON0bits.GO_nDONE == 0)
             {
-                sprintf(buf, "A: %u\r\n", (ADRESHbits.ADRESH << 8) | ADRESLbits.ADRESL);
-                UART_write_text(buf);
+                //sprintf(buf, "A: %u\r\n", (ADRESHbits.ADRESH << 8) | ADRESLbits.ADRESL);
+                //UART_write_text(buf);
                 
                 PIR1bits.ADIF = 0;
                 ADCON0bits.GO_nDONE = 1;
@@ -350,9 +350,6 @@ void main()
                     app_sleep();
                 }
             }
-            
-            sprintf(buf, "C: %d %d %d\r\n", transitionCounter, POWERSAVING_TRANSITION_READINGS, transitionCounter == POWERSAVING_TRANSITION_READINGS);
-            UART_write_text(buf);
             
             // If we've got a valid number of readings, transition out of powersaving
             if (transitionCounter == POWERSAVING_TRANSITION_READINGS)
