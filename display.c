@@ -16,7 +16,7 @@
 
 #include <stdio.h>
 
-#define DIST_THRESH 3
+#define DIST_THRESH 2
 
 void display_LED(LedState *ledState, uint8_t reading, uint8_t yellow, uint8_t red) 
 {   
