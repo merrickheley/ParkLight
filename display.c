@@ -16,7 +16,7 @@
 
 #include <stdio.h>
 
-#define DIST_THRESH 2
+#define DIST_THRESH 3
 
 void display_LED(LedState *ledState, uint8_t reading, uint8_t yellow, uint8_t red) 
 {   
@@ -65,7 +65,7 @@ void display_LED(LedState *ledState, uint8_t reading, uint8_t yellow, uint8_t re
 
 void blink_light(uint16_t lightColour, uint8_t flashes) {
     uint8_t i = 0;
-
+    
     for (i = 0; i < flashes; i++) {
         TLC5926_SetLights(lightColour);
         __delay_ms(200);

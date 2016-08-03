@@ -5,9 +5,14 @@
  * Created on May 2, 2016, 1:59 PM
  */
 
-#include "uart.h"
 
+
+#include "uart.h"
 #include "constants.h"
+
+#include <xc.h>
+#include <htc.h>
+#include <pic16f1828.h>
 
 char UART_init(const long int baudrate, const long int clock, bool transmit, bool receive)
 {
@@ -48,8 +53,11 @@ char UART_tx_empty()
 void UART_write_text(const char *text)
 {
     int i;
-    for(i=0;text[i]!='\0';i++)
+    for(i=0;text[i]!='\0';i++) 
+    {
+        CLRWDT();
         UART_write(text[i]);
+    }
 }
 
 char UART_data_ready()

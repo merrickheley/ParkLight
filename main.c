@@ -56,7 +56,7 @@ void init(void)
     SET_CLOCK(CLOCK_EXTERNAL);
     
     // Set the time-out period of the WDT
-    WDTCONbits.WDTPS = 0b01010; // 1s typical time-out period
+    WDTCONbits.WDTPS = 0b01001; // 512ms typical time-out period
 
     INTCONbits.GIE = 1; // Enable global interrupts
     INTCONbits.PEIE = 1; // Enable peripheral interrupts
