@@ -49,6 +49,8 @@ LedState led_state = { 0 };
 #define BAUD_RATE_FAST  4800
 #define BAUD_RATE_SLOW  300
 
+uint8_t transitionCounter = 0;
+
 void init(void) 
 {
     // Power Saving mode is off by default
@@ -195,6 +197,7 @@ void interrupt ISR(void)
 #define CALIB_STATE_YELLOW          1
 
 #define POWER_SAVING_COUNTER_THRESH  2
+#define POWERSAVING_TRANSITION_READINGS 2
 
 #define HCSR04_TRIG_DELAY_MIN       200
 #define HCSR04_TRIG_DELAY_SLOW      1000
@@ -217,6 +220,7 @@ void enter_passive(uint8_t *stateVar, uint8_t *cIndex, uint8_t *psReading)
 {
     *cIndex = 0;
     *psReading = 0;
+    transitionCounter = 0;
     
     OSCCONbits.IRCF = CLOCK_BITS_1MHZ; // 1MHz Internal
     SET_CLOCK(CLOCK_INTERNAL);
@@ -330,34 +334,46 @@ void main()
         }
         
         if (stateVar == MAIN_STATE_PASSIVE)
-        {
+        {           
             // Wait for the filter to fill for the first time
             if (cIndex == (FILTER_LEN-1) && psReading == 0)
                 psReading = fastMedian5(readings);
-            
-            // If the reading has been set and the threshold has been met
-            if (psReading > 0 && absdiff(state.reading, psReading) >= POWER_SAVING_COUNTER_THRESH)
-                enter_display(&stateVar);
-            else if (psReading > 0) 
+
+            // Check if absolute difference is greater than threshold and 
+            // increment the transition counter if it is, reset it otherwise 
+            // and sleep the application
+            if (psReading > 0)
             {
-                cIndex = 0;
-                psReading = 0;
-                app_sleep();
+                if (absdiff(curReading, psReading) >= POWER_SAVING_COUNTER_THRESH)
+                    transitionCounter++;
+                else
+                {
+                    transitionCounter = 0;
+                    app_sleep();
+                }
             }
+            
+            sprintf(buf, "C: %d %d %d\r\n", transitionCounter, POWERSAVING_TRANSITION_READINGS, transitionCounter == POWERSAVING_TRANSITION_READINGS);
+            UART_write_text(buf);
+            
+            // If we've got a valid number of readings, transition out of powersaving
+            if (transitionCounter == POWERSAVING_TRANSITION_READINGS)
+                enter_display(&stateVar);
+            // Otherwise continue handling powersaving
             else
-            {
+            {   
+                // Trigger another read if we're still in the powersaving state
                 UART_write_text("TRIG\r\n");
                 HCSR04_Trigger(true);
                 __delay_ms(HCSR04_TRIG_DELAY_READING_MIN);
             }
-        }
-        
+        }        
         else if (stateVar == MAIN_STATE_CALIBRATION)
         {
             // Wait for the filter to fill
             if (cIndex == (FILTER_LEN-1))
             {
-                #define CALIB_DISTANCE  5
+                #define CALIB_DISTANCE 5
                 // If the red button was pressed.
                 if (calibState == CALIB_STATE_RED) {
                     temp = fastMedian5(readings);
