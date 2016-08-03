@@ -200,12 +200,10 @@ void interrupt ISR(void)
 #define POWERSAVING_TRANSITION_READINGS 2
 
 #define HCSR04_TRIG_DELAY_MIN       200
-#define HCSR04_TRIG_DELAY_SLOW      1000
 
 #define DELAY_SCALING_FACTOR_READING 4
 
 #define HCSR04_TRIG_DELAY_READING_MIN  (HCSR04_TRIG_DELAY_MIN/DELAY_SCALING_FACTOR_READING)
-#define HCSR04_TRIG_DELAY_READING_SLOW (HCSR04_TRIG_DELAY_SLOW/DELAY_SCALING_FACTOR_READING)
 
 void app_sleep(void)
 {
@@ -435,7 +433,7 @@ void main()
                 if (led_state.turnoffCounter > LED_TIMER_OFF_THRESH)
                 {
                     led_state.offState = led_state.state;
-                    led_state.offReading = curReading;
+                    led_state.offReading = fastMedian5(readings);
                     led_state.state = DISP_STATE_OFF;
                     enter_passive(&stateVar, &cIndex, &psReading);
                     continue;
