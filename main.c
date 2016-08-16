@@ -196,6 +196,13 @@ void interrupt ISR(void)
 #define CALIB_STATE_RED             0
 #define CALIB_STATE_YELLOW          1
 
+// Calculated using: 2.9V / 5V * 1024
+#define BATTERY_LOW_ENTER           590
+#define BATTERY_LOW_LEAVE           610
+
+#define BATTERY_NORMAL              0
+#define BATTERY_LOW                 1
+
 #define POWER_SAVING_COUNTER_THRESH  2
 #define POWERSAVING_TRANSITION_READINGS 2
 
@@ -285,6 +292,8 @@ void main()
     uint8_t curReading = 0;
     uint8_t psReading = 0;
     uint8_t temp = 0;
+    uint8_t batteryState = BATTERY_NORMAL;
+    uint8_t flashCounter = 0;
     init();
 
     TLC5926_SetLights(LIGHT_RED);
@@ -297,10 +306,22 @@ void main()
             // Bump the watchdog
             CLRWDT();
             
+            // TODO
+            // Move this somewhere else so it gets called less often?
+            // Shut down the ADC when it's not in use?
             if (ADCON0bits.GO_nDONE == 0)
-            {
-                //sprintf(buf, "A: %u\r\n", (ADRESHbits.ADRESH << 8) | ADRESLbits.ADRESL);
+            {   
+                
+                uint16_t analog = (ADRESHbits.ADRESH << 8) | ADRESLbits.ADRESL;
+                //sprintf(buf, "A: %u\r\n", analog);
                 //UART_write_text(buf);
+                
+                // If we're below the low battery enter threshold, then set the
+                // battery state.
+                if (batteryState == BATTERY_NORMAL && analog < BATTERY_LOW_ENTER)
+                    batteryState = BATTERY_LOW;
+                else if (batteryState == BATTERY_LOW && analog > BATTERY_LOW_LEAVE)
+                    batteryState = BATTERY_NORMAL;
                 
                 PIR1bits.ADIF = 0;
                 ADCON0bits.GO_nDONE = 1;
@@ -419,9 +440,11 @@ void main()
             // Update the display
             if (state.newReading == true)
             {
+                // Set the lights to off every other count if the battery is low.
                 display_LED(&led_state, curReading, 
                       (uint8_t) db.sdb.rangePointYellow,
-                      (uint8_t) db.sdb.rangePointRed);
+                      (uint8_t) db.sdb.rangePointRed,
+                      (batteryState == BATTERY_LOW) && (flashCounter++ % 2));
                 
                 #define LED_TIMER_OFF_THRESH 25
 

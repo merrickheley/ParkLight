@@ -18,9 +18,11 @@
 
 #define DIST_THRESH 2
 
-void display_LED(LedState *ledState, uint8_t reading, uint8_t yellow, uint8_t red) 
+void display_LED(LedState *ledState, uint8_t reading, 
+        uint8_t yellow, uint8_t red, bool turnOff) 
 {   
     uint8_t oldLedState = ledState->state;
+    static bool wasOff = false;
     
     // The LED's were off, and there has been significant enough change 
     // in the reading to trigger activation.
@@ -51,9 +53,17 @@ void display_LED(LedState *ledState, uint8_t reading, uint8_t yellow, uint8_t re
     if (ledState->state == oldLedState)
         ledState->turnoffCounter++;
     
-    // Only do something if the led state has changed
-    if (ledState->state != oldLedState) {
-        ledState->turnoffCounter = 0;
+    // If turnoff is true, turn the lights off
+    if (turnOff == true && wasOff == false)
+        TLC5926_SetLights(LIGHT_OFF);
+    // If the led state has changed, or the lights were previous off but are
+    // now on, drive the lights.
+    else if (ledState->state != oldLedState || wasOff != turnOff) {
+        // Only reset the timeout counter if oldLedState has changed.
+        if (ledState-> state != oldLedState)
+            ledState->turnoffCounter = 0;
+        
+        // Set the lights depending on the state.
         if (ledState->state == DISP_STATE_RED)
             TLC5926_SetLights(LIGHT_RED);
         else if (ledState->state == DISP_STATE_YELLOW)
@@ -61,6 +71,8 @@ void display_LED(LedState *ledState, uint8_t reading, uint8_t yellow, uint8_t re
         else if (ledState->state == DISP_STATE_GREEN)
             TLC5926_SetLights(LIGHT_GREEN);
     }
+    
+    wasOff = turnOff;
 }
 
 void blink_light(uint16_t lightColour, uint8_t flashes) {
