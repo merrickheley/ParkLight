@@ -202,7 +202,9 @@ void interrupt ISR(void)
 #define BATTERY_LOW                 1
 
 #define POWER_SAVING_COUNTER_THRESH  2
-#define POWERSAVING_TRANSITION_READINGS 2
+#define POWERSAVING_TRANSITION_READINGS 3
+
+#define MAX_DELAY_UNTIL_READING_COUNT 3
 
 #define HCSR04_TRIG_DELAY_MIN       200
 
@@ -214,6 +216,9 @@ void app_sleep(void)
     PIN_ENABLE_HCSR04 = 0;
     
     SLEEP(); // XC8 compiler version of the asm sleep command
+    
+    // Delay a bit
+    __delay_ms(25);
     
     // Leave sleep mode
     PIN_ENABLE_HCSR04 = 1;
@@ -270,9 +275,12 @@ void delay_until_reading(void)
 {
     char buf[BUFSIZE];
     state.newReading = false;
+    HCSR04_Trigger();
     int counter = 0;
-    for (counter = 0; state.newReading != true; counter++) 
+    for (counter = 0; ((state.newReading != true) && 
+            (counter <= MAX_DELAY_UNTIL_READING_COUNT)); counter++) 
     {
+        CLRWDT();
         __delay_ms(10);
     }
     
@@ -298,9 +306,6 @@ void main()
     HCSR04_Trigger();
     
     while(1) {
-        
-        //UART_write_text("HI\r\n");
-        //SLEEP();
         
         // If there's been a new reading, add it to the circular buffer
         if (state.newReading == true) {
@@ -377,9 +382,10 @@ void main()
             }
             
             // If we've got a valid number of readings, transition out of powersaving
-            if (transitionCounter == POWERSAVING_TRANSITION_READINGS)
+            if (transitionCounter >= POWERSAVING_TRANSITION_READINGS) {
                 enter_display(&stateVar);
             // Otherwise continue handling powersaving
+            }
             else
             {   
                 // Trigger another read if we're still in the powersaving state
