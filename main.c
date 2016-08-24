@@ -195,8 +195,8 @@ void interrupt ISR(void)
 #define CALIB_STATE_YELLOW          1
 
 // Calculated using: 2.9V / 5V * 1024
-#define BATTERY_LOW_ENTER           590
-#define BATTERY_LOW_LEAVE           610
+#define BATTERY_LOW_ENTER           580
+#define BATTERY_LOW_LEAVE           620
 
 #define BATTERY_NORMAL              0
 #define BATTERY_LOW                 1
