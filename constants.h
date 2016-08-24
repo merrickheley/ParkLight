@@ -4,9 +4,6 @@
 #include <pic16f1828.h>
 
 #define _XTAL_FREQ              4000000
-#define _XTAL_FREQ_READING      1000000
-
-#define CLOCK_BITS_1MHZ         0b1011
 
 #define ADC_LOW_BATTERY_ALARM   615
 
