@@ -12,7 +12,6 @@
 #include "HCSR04.h"
 #include "TLC5926.h"
 #include "database.h"
-#include "display.h"
 #include "uart.h"
 #include "utils.h"
 
@@ -37,8 +36,6 @@ volatile bool timeCounterRunning = false;
 volatile uint8_t timeCounter = 0;
 volatile uint8_t timeReading = 0;
 volatile bool newTimeReading = false;
-
-LedState led_state = { 0 };
 
 #define BAUD_RATE_FAST  19200
 
@@ -175,6 +172,22 @@ void interrupt ISR(void)
 
 #define BUFSIZE 50
 
+// Application states
+#define APP_STATE_DISPLAY       0
+#define APP_STATE_STANDBY       1
+#define APP_STATE_CALIB         2
+#define APP_STATE_EXIT_STANDBY  3
+
+// Threshold for changing between DISP_STATE_*
+#define DISP_THRESH_DIST    4
+
+// Values for Green, yellow and red lighting states
+#define DISP_STATE_INIT     0
+#define DISP_STATE_OFF      1
+#define DISP_STATE_GREEN    2
+#define DISP_STATE_YELLOW   3
+#define DISP_STATE_RED      4
+
 // Calculated using: 2.9V / 5V * 1024
 #define BATTERY_LOW_ENTER           590
 #define BATTERY_LOW_LEAVE           610
@@ -213,8 +226,23 @@ void main()
     /* Run init code*/
     init();
     
-    /* Set the lights to red then trigger the sensor for the first time */
-    TLC5926_SetLights(LIGHT_RED);
+    // Handle readings within main loop
+    bool lastReadingValid = false;
+    uint8_t lastReading;
+    
+    // Application state
+    uint8_t appState = APP_STATE_DISPLAY;
+    
+    // Display state
+    uint8_t displayState = DISP_STATE_INIT;
+    uint8_t displayCounter = 0;
+    
+    // Temporary code for testing
+    db.sdb.rangePointYellow = 15;
+    db.sdb.rangePointRed = 5;       
+    
+    /* Trigger the sensor for the first time */
+    TLC5926_SetLights(LIGHT_OFF);
     HCSR04_Trigger();
     
     while(1) {
@@ -228,12 +256,82 @@ void main()
             sprintf(buf, "R: %d\r\n", timeReading);
             UART_write_text(buf);
             
+            lastReadingValid = true;
+            lastReading = timeReading;
+            
             // Clear the new time reading
             newTimeReading = false;
         }
+        
+        // Update the display
+        if (appState == APP_STATE_DISPLAY && lastReadingValid == true)
+        {
+            uint8_t oldDisplayState = displayState;
+            
+            // Handle initial state of scale
+            if (oldDisplayState == DISP_STATE_INIT) 
+            {
+                // Set the initial state to whatever the first reading is
+                if (lastReading > db.sdb.rangePointYellow)
+                    displayState = DISP_STATE_GREEN;
+                else if (lastReading > db.sdb.rangePointRed)
+                    displayState = DISP_STATE_YELLOW;
+                else
+                    displayState = DISP_STATE_RED;
+            }
+            // If the display state is green
+            else if (oldDisplayState == DISP_STATE_GREEN) 
+            {
+                // If the counter is within the yellow threshold, transition
+                if (lastReading < db.sdb.rangePointYellow)
+                    displayState = DISP_STATE_YELLOW;
+            
+            } 
+            // If the state is yellow
+            else if (oldDisplayState == DISP_STATE_YELLOW) 
+            {
+                // If the state is within the red threshold, transition
+                if (lastReading < db.sdb.rangePointRed)
+                    displayState = DISP_STATE_RED;
+                // If the state is outside the green threshold, transition
+                else if (lastReading > (db.sdb.rangePointYellow + DISP_THRESH_DIST))
+                    displayState = DISP_STATE_GREEN;                
+            } 
+            // If the state is red
+            else if (oldDisplayState == DISP_STATE_RED) 
+            {
+                // If the state is within the yellow threshold, transition
+                if (lastReading > (db.sdb.rangePointRed + DISP_THRESH_DIST))
+                    displayState = DISP_STATE_YELLOW;
+            }
+            
+            // If the led state hasn't been changed
+            if (displayState == oldDisplayState)
+                displayCounter++;
+            
+            // If the led state has changed, or the lights were previous off 
+            // but are now on, drive the lights.
+            if (displayState != oldDisplayState) {
+                // Only reset the timeout counter if oldLedState has changed.
+                if (displayState != oldDisplayState)
+                    displayCounter = 0;
+
+                // Set the lights depending on the state.
+                if (displayState == DISP_STATE_RED)
+                    TLC5926_SetLights(LIGHT_RED);
+                else if (displayState == DISP_STATE_YELLOW)
+                    TLC5926_SetLights(LIGHT_YELLOW);
+                else if (displayState == DISP_STATE_GREEN)
+                    TLC5926_SetLights(LIGHT_GREEN);
+            }
+        }
+        
+        // We're done with the reading for this iteration of the application,
+        // so set the reading as invalid.
+        lastReadingValid = false;
 
         HCSR04_Trigger();
-        sprintf(buf, "D: %d\r\n", delay_until_reading(1000));
+        sprintf(buf, "D: %d\r\n", delay_until_reading(200));
         UART_write_text(buf);
     }
 }

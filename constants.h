@@ -42,9 +42,4 @@
 #define BTN_SET_YELLOW          RB4
 #define BTN_SET_RED             RB5
 
-// Values for Green, yellow and red lighting states
-#define DISP_STATE_GREEN             0
-#define DISP_STATE_YELLOW            1
-#define DISP_STATE_RED               2
-
 #endif	/* CONSTANTS_H */
