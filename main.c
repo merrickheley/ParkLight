@@ -113,7 +113,7 @@ void init(void)
     UART_write_text("BOOT!\r\n");
 }
 
-void save_reading(void)
+void save_reading()
 {
     // Set edge tracker low and save counter
     timeCounterRunning = false;
@@ -171,15 +171,29 @@ void interrupt ISR(void)
 }
 
 #define BUFSIZE 50
+#define FILTER_LEN 5
 
 // Application states
 #define APP_STATE_DISPLAY       0
 #define APP_STATE_STANDBY       1
 #define APP_STATE_CALIB         2
-#define APP_STATE_EXIT_STANDBY  3
+#define APP_STATE_ENTER_DISPLAY 3
+#define APP_STATE_ENTER_STANDBY 4
+#define APP_STATE_ENTER_CALIB   5
+
+// Calib types
+#define APP_CALIB_NONE          0
+#define APP_CALIB_YELLOW        1
+#define APP_CALIB_RED           2
 
 // Threshold for changing between DISP_STATE_*
 #define DISP_THRESH_DIST    4
+
+// Threshold for differences between calibration points
+#define CALIB_DISTANCE      5
+
+// Calibration Flashes
+#define CALIB_FLASHES       5
 
 // Values for Green, yellow and red lighting states
 #define DISP_STATE_INIT     0
@@ -198,6 +212,20 @@ void interrupt ISR(void)
 #define MAX_DELAY_UNTIL_READING_COUNT 3
 
 #define HCSR04_TRIG_DELAY_MIN       200
+
+void blink_light(uint16_t lightColour, uint8_t flashes) {
+    uint8_t i = 0;
+    
+    for (i = 0; i < flashes; i++) {
+        TLC5926_SetLights(lightColour);
+        CLRWDT();
+        __delay_ms(200);
+        CLRWDT();
+        TLC5926_SetLights(LIGHT_OFF);
+        __delay_ms(200);
+        CLRWDT();
+    }
+}
 
 // Delays in multiples of 10ms until a new reading has occurred
 uint16_t delay_until_reading(uint16_t minimumTime) 
@@ -218,6 +246,17 @@ uint16_t delay_until_reading(uint16_t minimumTime)
     return counter * DELAY_TIME;
 }
 
+// Update the lights depending on the state.
+void setLights(uint8_t displayState)
+{
+    if (displayState == DISP_STATE_RED)
+        TLC5926_SetLights(LIGHT_RED);
+    else if (displayState == DISP_STATE_YELLOW)
+        TLC5926_SetLights(LIGHT_YELLOW);
+    else if (displayState == DISP_STATE_GREEN)
+        TLC5926_SetLights(LIGHT_GREEN);
+}
+
 void main()
 {
     /* Initialise main variables */
@@ -228,11 +267,17 @@ void main()
     
     // Handle readings within main loop
     bool lastReadingValid = false;
-    uint8_t lastReading;
+    uint8_t lastReading = 0;
+    
+    // Handle filtering readings for calibration
+    uint8_t readings[FILTER_LEN] = {0};
+    uint8_t cIndex = 0;
+    uint8_t filteredReading = 0;
     
     // Application state
     uint8_t appState = APP_STATE_DISPLAY;
-    
+    uint8_t appCalibType = APP_CALIB_NONE;
+   
     // Display state
     uint8_t displayState = DISP_STATE_INIT;
     uint8_t displayCounter = 0;
@@ -252,19 +297,46 @@ void main()
             // Bump the watchdog
             CLRWDT();
             
-            // Process the reading            
-            sprintf(buf, "R: %d\r\n", timeReading);
-            UART_write_text(buf);
-            
             lastReadingValid = true;
             lastReading = timeReading;
+            
+            // Process the reading            
+            sprintf(buf, "R: %d\r\n", lastReading);
+            UART_write_text(buf);
             
             // Clear the new time reading
             newTimeReading = false;
         }
         
-        // Update the display
-        if (appState == APP_STATE_DISPLAY && lastReadingValid == true)
+        // If a calibration button has been pressed enter the ENTER_CALIB state.
+        if ((appState != APP_STATE_ENTER_CALIB) && 
+                (btnRedPressed == true || btnYellowPressed == true))
+        {
+            // Set the calib type to which button was pressed
+            if (btnRedPressed == true)
+                appCalibType = APP_CALIB_RED;
+            else if (btnYellowPressed == true)
+                appCalibType = APP_CALIB_YELLOW;
+            
+            btnRedPressed = false;
+            btnYellowPressed = false;
+            
+            // Enter the calibration state
+            appState = APP_STATE_ENTER_CALIB;
+        }
+        
+        //////////////////////////////////
+        // Handle entering the display state
+        //////////////////////////////////
+        if (appState == APP_STATE_ENTER_DISPLAY)
+        {
+            setLights(displayState);
+            appState = APP_STATE_DISPLAY;
+        }
+        //////////////////////////////////
+        // Handle the display state
+        //////////////////////////////////
+        else if (appState == APP_STATE_DISPLAY && lastReadingValid == true)
         {
             uint8_t oldDisplayState = displayState;
             
@@ -317,13 +389,86 @@ void main()
                     displayCounter = 0;
 
                 // Set the lights depending on the state.
-                if (displayState == DISP_STATE_RED)
-                    TLC5926_SetLights(LIGHT_RED);
-                else if (displayState == DISP_STATE_YELLOW)
-                    TLC5926_SetLights(LIGHT_YELLOW);
-                else if (displayState == DISP_STATE_GREEN)
-                    TLC5926_SetLights(LIGHT_GREEN);
+                setLights(displayState);
             }
+        }
+        //////////////////////////////////
+        // Handle entering the calibration state
+        //////////////////////////////////
+        else if (appState == APP_STATE_ENTER_CALIB)
+        {
+            static bool calibrationRunning = false;
+            
+            // If the calibration isn't running, reset the cIndex to 0 and start
+            if (calibrationRunning == false)
+            {
+                cIndex = 0;
+                calibrationRunning = true;
+            }
+            // If the calibration is running
+            else
+            {
+                // Update the circular buffer
+                readings[cIndex] = lastReading;
+                circular_increment_counter(&cIndex, FILTER_LEN);
+                
+                // If we've filled the filter, go to the calibration state
+                if (cIndex == 0)
+                {
+                    filteredReading = fastMedian5(readings);
+                    calibrationRunning = false;
+                    // If the reading isn't valid
+                    if (filteredReading > MAX_COUNTER_VAL)
+                    {
+                        UART_write_text("CAL FAIL: VAL\r\n");
+                        blink_light(LIGHT_RED, CALIB_FLASHES);
+                        appState = APP_STATE_ENTER_DISPLAY;
+                    }
+                    // If the reading is valid, calibrate it!
+                    else
+                        appState = APP_STATE_CALIB;
+                }
+            }
+        }
+        //////////////////////////////////
+        // Handle the calibration state
+        //////////////////////////////////
+        else if (appState == APP_STATE_CALIB)
+        {
+            // If the red button was pressed.
+            if (appCalibType == APP_CALIB_RED) {
+                // Check if the distance is outside of the calib range from 
+                // yellow
+                if (absdiff(db.sdb.rangePointYellow, filteredReading) > CALIB_DISTANCE) {
+                    db.sdb.rangePointRed = filteredReading;
+                    sprintf(buf, "P RED: %d\r\n", db.sdb.rangePointRed);
+                    UART_write_text(buf);
+                    blink_light(LIGHT_GREEN, CALIB_FLASHES);
+                }
+                else {
+                    sprintf(buf, "PF RED: %d %d\r\n", db.sdb.rangePointYellow, filteredReading);
+                    UART_write_text(buf);
+                    blink_light(LIGHT_RED, CALIB_FLASHES);
+                }
+            }
+            // If the yellow button was pressed.
+            if (appCalibType == APP_CALIB_YELLOW) {
+                // Check if the distance is outside of the calib range from 
+                // red
+                if (absdiff(db.sdb.rangePointRed, filteredReading) > CALIB_DISTANCE) {
+                    db.sdb.rangePointYellow = filteredReading;
+                    sprintf(buf, "P YEL: %d\r\n", db.sdb.rangePointYellow);
+                    UART_write_text(buf);
+                    blink_light(LIGHT_GREEN, CALIB_FLASHES);
+                }
+                else {
+                    sprintf(buf, "PF YEL: %d %d\r\n", db.sdb.rangePointRed, filteredReading);
+                    UART_write_text(buf);
+                    blink_light(LIGHT_RED, CALIB_FLASHES);
+                }
+            }
+            db_save();
+            appState = APP_STATE_ENTER_DISPLAY; 
         }
         
         // We're done with the reading for this iteration of the application,
