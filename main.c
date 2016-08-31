@@ -41,7 +41,8 @@ volatile bool newTimeReading = false;
 
 void init(void) 
 {
-    OSCCONbits.SCS = 0b00;
+    OSCCONbits.SCS = 0b10;
+    OSCCONbits.IRCF = 0b1101;
     
     // Set the time-out period of the WDT
     WDTCON = 0b00010011; // 512ms typical time-out period
@@ -110,6 +111,8 @@ void init(void)
     // Enable RC0 to HCSR
     PIN_ENABLE_HCSR04 = 1;
     
+    __delay_ms(100);
+    
     UART_write_text("BOOT!\r\n");
 }
 
@@ -174,33 +177,33 @@ void interrupt ISR(void)
 #define FILTER_LEN 5
 
 // Application states
-#define APP_STATE_DISPLAY       0
-#define APP_STATE_STANDBY       1
-#define APP_STATE_CALIB         2
-#define APP_STATE_ENTER_DISPLAY 3
-#define APP_STATE_ENTER_STANDBY 4
-#define APP_STATE_ENTER_CALIB   5
+#define APP_STATE_DISPLAY           0
+#define APP_STATE_STANDBY           1
+#define APP_STATE_CALIB             2
+#define APP_STATE_ENTER_DISPLAY     3
+#define APP_STATE_ENTER_STANDBY     4
+#define APP_STATE_ENTER_CALIB       5
 
 // Calib types
-#define APP_CALIB_NONE          0
-#define APP_CALIB_YELLOW        1
-#define APP_CALIB_RED           2
+#define APP_CALIB_NONE              0
+#define APP_CALIB_YELLOW            1
+#define APP_CALIB_RED               2
 
 // Threshold for changing between DISP_STATE_*
-#define DISP_THRESH_DIST    4
+#define DISP_THRESH_DIST            4
 
 // Threshold for differences between calibration points
-#define CALIB_DISTANCE      5
+#define CALIB_DISTANCE              5
 
 // Calibration Flashes
-#define CALIB_FLASHES       5
+#define CALIB_FLASHES               5
 
 // Values for Green, yellow and red lighting states
-#define DISP_STATE_INIT     0
-#define DISP_STATE_OFF      1
-#define DISP_STATE_GREEN    2
-#define DISP_STATE_YELLOW   3
-#define DISP_STATE_RED      4
+#define DISP_STATE_INIT             0
+#define DISP_STATE_OFF              1
+#define DISP_STATE_GREEN            2
+#define DISP_STATE_YELLOW           3
+#define DISP_STATE_RED              4
 
 // Calculated using: 2.9V / 5V * 1024
 #define BATTERY_LOW_ENTER           590
@@ -211,7 +214,17 @@ void interrupt ISR(void)
 
 #define MAX_DELAY_UNTIL_READING_COUNT 3
 
-#define HCSR04_TRIG_DELAY_MIN       200
+#define HCSR04_TRIG_DELAY_DISPLAY   200
+#define HCSR04_TRIG_DELAY_STANDBY   0
+#define HCSR04_TRIG_DELAY_CAL       0
+
+// How different does the reading have to be from the standby reading to be valid
+#define STANDBY_COUNTER_THRESH      2
+// Number of valid readings before transitioning out of standby
+#define STANDBY_STABLE_READINGS     3
+// Number of stable readings to leave display state
+#define DISPLAY_STABLE_READINGS     25
+
 
 void blink_light(uint16_t lightColour, uint8_t flashes) {
     uint8_t i = 0;
@@ -231,16 +244,21 @@ void blink_light(uint16_t lightColour, uint8_t flashes) {
 uint16_t delay_until_reading(uint16_t minimumTime) 
 {
 #define DELAY_TIME  10
+#define MAX_COUNTS_UNTIL_ERR   50
+    unsigned char tBuf[20] = {0};
     
     int counter = 0;
     for (counter = 0; 
          !((newTimeReading == true) && 
             (counter >= MAX_DELAY_UNTIL_READING_COUNT) &&
-            (counter >= (minimumTime/DELAY_TIME))); 
+            (counter >= (minimumTime/DELAY_TIME))
+           ) && (counter < MAX_COUNTS_UNTIL_ERR); 
          counter++) 
     {
         CLRWDT();
         __delay_ms(DELAY_TIME);
+//        sprintf(tBuf, "C %d %d %d %d\r\n", counter, timeReading, timeCounterRunning, newTimeReading);
+//        UART_write_text(tBuf);
     }
     
     return counter * DELAY_TIME;
@@ -268,6 +286,7 @@ void main()
     // Handle readings within main loop
     bool lastReadingValid = false;
     uint8_t lastReading = 0;
+    uint8_t standbyReading = 0;
     
     // Handle filtering readings for calibration
     uint8_t readings[FILTER_LEN] = {0};
@@ -280,7 +299,10 @@ void main()
    
     // Display state
     uint8_t displayState = DISP_STATE_INIT;
-    uint8_t displayCounter = 0;
+    uint8_t stableReadingCount = 0;
+    
+    // Minimum delay time for taking reading
+    uint16_t readingDelayTime = HCSR04_TRIG_DELAY_DISPLAY;
     
     // Temporary code for testing
     db.sdb.rangePointYellow = 15;
@@ -326,11 +348,125 @@ void main()
         }
         
         //////////////////////////////////
+        // Handle entering the standby state
+        //////////////////////////////////
+        if (appState == APP_STATE_ENTER_STANDBY && lastReadingValid == true)
+        {
+            static bool standbyStarted = false;
+            
+            UART_write_text("1\r\n");
+            
+            // If the standby isn't running, start standby
+            if (standbyStarted == false)
+            {
+                // Reset the index
+                cIndex = 0;
+                // Disable LED's on TLC
+                PIN_LED_OE = IO_HIGH;
+                // Disable TLC via PIN_TLC_ENABLE
+                PIN_ENABLE_TLC5926 = 0;
+                // Reading delay time
+                readingDelayTime = HCSR04_TRIG_DELAY_STANDBY;
+                
+                standbyStarted = true;
+                UART_write_text("2\r\n");
+            } 
+            else
+            {
+                // Update the circular buffer
+                readings[cIndex] = lastReading;
+                circular_increment_counter(&cIndex, FILTER_LEN);
+                
+                UART_write_text("3\r\n");
+
+                // If we've filled the filter, go to the calibration state
+                if (cIndex == 0)
+                {
+                    UART_write_text("4_1\r\n");
+                    
+                    standbyReading = fastMedian5(readings);
+                    standbyStarted = false;
+                    
+                    UART_write_text("4\r\n");
+
+                    // If the reading isn't valid
+                    if (filteredReading > MAX_COUNTER_VAL)
+                    {
+                        UART_write_text("STANDBY FAIL: VAL\r\n");
+                        blink_light(LIGHT_RED, CALIB_FLASHES);
+                        appState = APP_STATE_ENTER_DISPLAY;
+                    }
+                    // If the reading is valid, move to standby
+                    else
+                        appState = APP_STATE_STANDBY;
+                }
+            }
+
+        }
+        //////////////////////////////////
+        // Handle the standby state
+        //////////////////////////////////
+        else if (appState == APP_STATE_STANDBY && lastReadingValid == true)
+        {
+            static uint8_t standbyReadingCounter = 0;
+            
+            UART_write_text("A\r\n");
+            
+            // Check if absolute difference is greater than threshold and 
+            // increment the transition counter if it is, reset it otherwise 
+            // and sleep the application
+            if (lastReading > 0 && lastReading <= MAX_COUNTER_VAL)
+            {   
+                UART_write_text("B\r\n");
+                
+                // Was the reading significantly different from the standby reading?
+                if (absdiff(lastReading, standbyReading) >= STANDBY_COUNTER_THRESH)
+                {
+                    standbyReadingCounter++;
+                    UART_write_text("C\r\n");
+                    
+                    // If there have been enough valid readings, enter the display state
+                    if (standbyReadingCounter >= STANDBY_STABLE_READINGS)
+                    {
+                        appState = APP_STATE_ENTER_DISPLAY;
+                        UART_write_text("D\r\n");
+                    }
+                }
+                // If it wasn't reset the counter.
+                else
+                {
+                    standbyReadingCounter = 0;
+                    UART_write_text("E\r\n");
+                }
+            }
+            
+            UART_write_text("F\r\n");
+            
+            // If nothing brought us out of sleep, sleep.
+            if (appState == APP_STATE_STANDBY)
+            {
+                UART_write_text("G\r\n");
+                
+                // Enter sleep mode
+                PIN_ENABLE_HCSR04 = 0;
+                SLEEP();            
+                PIN_ENABLE_HCSR04 = 1;
+            }
+        }
+        //////////////////////////////////
         // Handle entering the display state
         //////////////////////////////////
-        if (appState == APP_STATE_ENTER_DISPLAY)
+        else if (appState == APP_STATE_ENTER_DISPLAY)
         {
+            // Enable TLC
+            PIN_ENABLE_TLC5926 = 1;
+            // Re-enable LED's on TLC
+            PIN_LED_OE = IO_LOW;
+            // Set delay time
+            readingDelayTime = HCSR04_TRIG_DELAY_DISPLAY;
+            
             setLights(displayState);
+            stableReadingCount = 0;
             appState = APP_STATE_DISPLAY;
         }
         //////////////////////////////////
@@ -379,30 +515,38 @@ void main()
             
             // If the led state hasn't been changed
             if (displayState == oldDisplayState)
-                displayCounter++;
-            
-            // If the led state has changed, or the lights were previous off 
-            // but are now on, drive the lights.
-            if (displayState != oldDisplayState) {
-                // Only reset the timeout counter if oldLedState has changed.
-                if (displayState != oldDisplayState)
-                    displayCounter = 0;
-
-                // Set the lights depending on the state.
+            {
+                stableReadingCount++;
+                
+                // If this has reached the threshold, move to powersaving
+                if (stableReadingCount == DISPLAY_STABLE_READINGS)
+                    appState = APP_STATE_ENTER_STANDBY;
+            }
+            else 
+            {
+                stableReadingCount = 0;
                 setLights(displayState);
             }
         }
         //////////////////////////////////
         // Handle entering the calibration state
         //////////////////////////////////
-        else if (appState == APP_STATE_ENTER_CALIB)
+        else if (appState == APP_STATE_ENTER_CALIB && lastReadingValid == true)
         {
             static bool calibrationRunning = false;
             
-            // If the calibration isn't running, reset the cIndex to 0 and start
+            // If the calibration isn't running, start
             if (calibrationRunning == false)
             {
+                // Reset the cIndex to 0
                 cIndex = 0;
+                // Enable TLC
+                PIN_ENABLE_TLC5926 = 1;
+                // Re-enable LED's on TLC
+                PIN_LED_OE = IO_LOW;
+                // Set delay time
+                readingDelayTime = HCSR04_TRIG_DELAY_CAL;
+                
                 calibrationRunning = true;
             }
             // If the calibration is running
@@ -476,7 +620,7 @@ void main()
         lastReadingValid = false;
 
         HCSR04_Trigger();
-        sprintf(buf, "D: %d\r\n", delay_until_reading(200));
+        sprintf(buf, "D: %d\r\n", delay_until_reading(readingDelayTime));
         UART_write_text(buf);
     }
 }
