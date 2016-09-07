@@ -14,21 +14,21 @@
 #define IO_LOW                  0
 
 // Pins to enable peripherals
-#define PIN_ENABLE_TLC5926      RC5
-#define PIN_ENABLE_HCSR04       RC0
+#define PIN_ENABLE_TLC5926      LATCbits.LATC5
+#define PIN_ENABLE_HCSR04       LATCbits.LATC0
 
 // Analogue battery check
 #define PIN_BATTERY             RC1
 
 // HCSR04 Pins
-#define PIN_US_TRIGGER          RC2
+#define PIN_US_TRIGGER          LATCbits.LATC2
 #define PIN_US_ECHO             RA2
 
 // TLC5926 Pins
-#define PIN_LED_SDI             RC7
-#define PIN_LED_CLK             RC6
-#define PIN_LED_LE              RC3
-#define PIN_LED_OE              RC4
+#define PIN_LED_SDI             LATCbits.LATC7
+#define PIN_LED_CLK             LATCbits.LATC6
+#define PIN_LED_LE              LATCbits.LATC3
+#define PIN_LED_OE              LATCbits.LATC4
 
 // LED Array colour bitmap values
 #define LIGHT_RED               0x001F
