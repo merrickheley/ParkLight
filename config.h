@@ -1,7 +1,7 @@
 #ifndef CONFIG_H
 #define	CONFIG_H
 
-#pragma config FOSC = XT        // Oscillator Selection (XT : Medium power crystal on OSC1/OSC2)
+#pragma config FOSC = INTOSC    // Oscillator Selection (XT : Medium power crystal on OSC1/OSC2)
 #pragma config WDTE = ON        // WDT controlled by the SWDTEN bit in the WDTCON register  
 #pragma config PWRTE = OFF      // Power-up Timer Enable (PWRT disabled)    
 #pragma config MCLRE = OFF      // MCLR Pin Function Select (MCLR/VPP pin function is digital input)    
@@ -9,7 +9,7 @@
 #pragma config CPD = OFF        // Data Memory Code Protection (Data memory code protection is disabled)    
 #pragma config BOREN = OFF      // Brown-out Reset Enable (Brown-out Reset disabled)    
 #pragma config CLKOUTEN = OFF   // Clock Out Enable (CLKOUT function is disabled. I/O or oscillator function on the CLKOUT pin)    
-#pragma config IESO = ON        // Internal/External Switchover (Internal/External Switchover mode is enabled)    
+#pragma config IESO = OFF       // Internal/External Switchover (Internal/External Switchover mode is enabled)    
 #pragma config FCMEN = ON       // Fail-Safe Clock Monitor Enable (Fail-Safe Clock Monitor is enabled)    
  
 // CONFIG2    
