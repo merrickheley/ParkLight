@@ -35,6 +35,7 @@
 #define LIGHT_YELLOW            0x7C00
 #define LIGHT_GREEN             0x03E0
 #define LIGHT_OFF               0x0000
+#define LIGHT_CENTERS           0x2044
 
 #define LIGHT_THRESH_OFFSET     2
 

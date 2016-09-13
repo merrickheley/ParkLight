@@ -229,6 +229,8 @@ void interrupt ISR(void)
 // before power saving is enabled
 #define SHIFTING_THRESH             12
 
+#define MAX_NO_READING_THRESH       10
+
 void blink_light(uint16_t lightColour, uint8_t flashes) {
     uint8_t i = 0;
     
@@ -315,6 +317,8 @@ void main()
     TLC5926_SetLights(LIGHT_OFF);
     HCSR04_Trigger();
     
+    uint8_t noReadingCounter = 0;
+    
     while(1) {
         
         // If there's been a new reading, add it to the circular buffer
@@ -331,6 +335,17 @@ void main()
             
             // Clear the new time reading
             newTimeReading = false;
+            noReadingCounter = 0;
+        } else {
+            noReadingCounter++;
+        }
+        
+        // If there have been no readings for 100 iterations, 
+        // a problem has occured with the HCSR04
+        if (noReadingCounter > MAX_NO_READING_THRESH) 
+        {
+            blink_light(LIGHT_CENTERS, 5);
+            continue;
         }
         
         // If a calibration button has been pressed enter the ENTER_CALIB state.
