@@ -354,8 +354,6 @@ void main()
         {
             static bool standbyStarted = false;
             
-            UART_write_text("1\r\n");
-            
             // If the standby isn't running, start standby
             if (standbyStarted == false)
             {
@@ -369,25 +367,18 @@ void main()
                 readingDelayTime = HCSR04_TRIG_DELAY_STANDBY;
                 
                 standbyStarted = true;
-                UART_write_text("2\r\n");
             } 
             else
             {
                 // Update the circular buffer
                 readings[cIndex] = lastReading;
                 circular_increment_counter(&cIndex, FILTER_LEN);
-                
-                UART_write_text("3\r\n");
 
                 // If we've filled the filter, go to the calibration state
                 if (cIndex == 0)
-                {
-                    UART_write_text("4_1\r\n");
-                    
+                {                    
                     standbyReading = fastMedian5(readings);
                     standbyStarted = false;
-                    
-                    UART_write_text("4\r\n");
 
                     // If the reading isn't valid
                     if (filteredReading > MAX_COUNTER_VAL)
@@ -409,43 +400,35 @@ void main()
         else if (appState == APP_STATE_STANDBY && lastReadingValid == true)
         {
             static uint8_t standbyReadingCounter = 0;
-            
-            UART_write_text("A\r\n");
+            bool resleep = true;
             
             // Check if absolute difference is greater than threshold and 
             // increment the transition counter if it is, reset it otherwise 
             // and sleep the application
             if (lastReading > 0 && lastReading <= MAX_COUNTER_VAL)
-            {   
-                UART_write_text("B\r\n");
-                
+            {                   
                 // Was the reading significantly different from the standby reading?
                 if (absdiff(lastReading, standbyReading) >= STANDBY_COUNTER_THRESH)
                 {
                     standbyReadingCounter++;
-                    UART_write_text("C\r\n");
+                    resleep = false;
                     
                     // If there have been enough valid readings, enter the display state
                     if (standbyReadingCounter >= STANDBY_STABLE_READINGS)
                     {
                         appState = APP_STATE_ENTER_DISPLAY;
-                        UART_write_text("D\r\n");
                     }
                 }
                 // If it wasn't reset the counter.
                 else
                 {
                     standbyReadingCounter = 0;
-                    UART_write_text("E\r\n");
                 }
             }
             
-            UART_write_text("F\r\n");
-            
             // If nothing brought us out of sleep, sleep.
-            if (appState == APP_STATE_STANDBY)
+            if (appState == APP_STATE_STANDBY && resleep == true)
             {
-                UART_write_text("G\r\n");
                 
                 // Enter sleep mode
                 PIN_ENABLE_HCSR04 = 0;
