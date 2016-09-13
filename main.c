@@ -80,10 +80,8 @@ void init(void)
     ANSELBbits.ANSB4 = 0;
     ANSELBbits.ANSB5 = 0;
     ANSELAbits.ANSELA = 0x00;
-    ANSELCbits.ANSELC = 0x00;
-    
-    // Enable RC1 as analogue input
-    ANSELCbits.ANSC1 = 1;
+    // Enable only RC1
+    ANSELCbits.ANSELC = 0x01;
     
     // Configure the ADC for battery
     ADCON1bits.ADCS = 0b000;            // F_osc/64. Slow as possible.
@@ -206,8 +204,8 @@ void interrupt ISR(void)
 #define DISP_STATE_RED              4
 
 // Calculated using: 2.9V / 5V * 1024
-#define BATTERY_LOW_ENTER           590
-#define BATTERY_LOW_LEAVE           610
+#define BATTERY_LOW_ENTER           580
+#define BATTERY_LOW_LEAVE           620
 
 #define BATTERY_NORMAL              0
 #define BATTERY_LOW                 1
@@ -273,6 +271,8 @@ void setLights(uint8_t displayState)
         TLC5926_SetLights(LIGHT_YELLOW);
     else if (displayState == DISP_STATE_GREEN)
         TLC5926_SetLights(LIGHT_GREEN);
+    else if (displayState == DISP_STATE_OFF)
+        TLC5926_SetLights(LIGHT_OFF);
 }
 
 void main()
@@ -304,6 +304,10 @@ void main()
     // Minimum delay time for taking reading
     uint16_t readingDelayTime = HCSR04_TRIG_DELAY_DISPLAY;
     
+    // Get a new analogue reading
+    bool analogueReadingValid = false;
+    bool batteryFlash = true;
+    
     // Temporary code for testing
     db.sdb.rangePointYellow = 15;
     db.sdb.rangePointRed = 5;       
@@ -323,8 +327,8 @@ void main()
             lastReading = timeReading;
             
             // Process the reading            
-            sprintf(buf, "R: %d\r\n", lastReading);
-            UART_write_text(buf);
+//            sprintf(buf, "R: %d\r\n", lastReading);
+//            UART_write_text(buf);
             
             // Clear the new time reading
             newTimeReading = false;
@@ -448,6 +452,13 @@ void main()
             // Set delay time
             readingDelayTime = HCSR04_TRIG_DELAY_DISPLAY;
             
+            // Start the ADC for a low battery reading
+            ADCON0bits.GO_nDONE = 1;
+            analogueReadingValid = false;
+            
+            // Reset the battery flash variable
+            batteryFlash = true;
+            
             setLights(displayState);
             stableReadingCount = 0;
             appState = APP_STATE_DISPLAY;
@@ -458,6 +469,26 @@ void main()
         else if (appState == APP_STATE_DISPLAY && lastReadingValid == true)
         {
             uint8_t oldDisplayState = displayState;
+            static uint8_t batteryState = BATTERY_NORMAL;
+           
+            // Get the ADC reading for low battery
+            if (ADCON0bits.GO_nDONE == 0 && analogueReadingValid == false)
+            {
+                uint16_t analog = (ADRESHbits.ADRESH << 8) | ADRESLbits.ADRESL;
+                PIR1bits.ADIF = 0;
+                
+                // If we're below the low battery enter threshold, then set the
+                // battery state.
+                if (batteryState == BATTERY_NORMAL && analog < BATTERY_LOW_ENTER)
+                    batteryState = BATTERY_LOW;
+                else if (batteryState == BATTERY_LOW && analog > BATTERY_LOW_LEAVE)
+                    batteryState = BATTERY_NORMAL;
+                
+                sprintf(buf, "A: %u\r\n", analog);
+                UART_write_text(buf);
+                
+                analogueReadingValid = true;
+            }
             
             // Handle initial state of scale
             if (oldDisplayState == DISP_STATE_INIT) 
@@ -504,11 +535,21 @@ void main()
                 // If this has reached the threshold, move to powersaving
                 if (stableReadingCount == DISPLAY_STABLE_READINGS)
                     appState = APP_STATE_ENTER_STANDBY;
+                // else if the battery is low
+                else if (batteryState == BATTERY_LOW)
+                {
+                    batteryFlash = !batteryFlash;
+                    if (batteryFlash == true)
+                        setLights(displayState);
+                    else
+                        setLights(DISP_STATE_OFF);
+                }
             }
             else 
             {
                 stableReadingCount = 0;
                 setLights(displayState);
+                batteryFlash = true;
             }
         }
         //////////////////////////////////
@@ -604,6 +645,6 @@ void main()
 
         HCSR04_Trigger();
         sprintf(buf, "D: %d\r\n", delay_until_reading(readingDelayTime));
-        UART_write_text(buf);
+//        UART_write_text(buf);
     }
 }
