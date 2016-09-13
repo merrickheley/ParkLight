@@ -223,6 +223,11 @@ void interrupt ISR(void)
 // Number of stable readings to leave display state
 #define DISPLAY_STABLE_READINGS     25
 
+// The number of times the device is allowed to shift back and forth in display mode
+// before power saving is enabled
+#define SHIFTING_THRESH             12
+
+#define MAX_NO_READING_THRESH       10
 
 void blink_light(uint16_t lightColour, uint8_t flashes) {
     uint8_t i = 0;
@@ -316,6 +321,8 @@ void main()
     TLC5926_SetLights(LIGHT_OFF);
     HCSR04_Trigger();
     
+    uint8_t noReadingCounter = 0;
+    
     while(1) {
         
         // If there's been a new reading, add it to the circular buffer
@@ -332,6 +339,17 @@ void main()
             
             // Clear the new time reading
             newTimeReading = false;
+            noReadingCounter = 0;
+        } else {
+            noReadingCounter++;
+        }
+        
+        // If there have been no readings for 100 iterations, 
+        // a problem has occured with the HCSR04
+        if (noReadingCounter > MAX_NO_READING_THRESH) 
+        {
+            blink_light(LIGHT_CENTERS, 5);
+            continue;
         }
         
         // If a calibration button has been pressed enter the ENTER_CALIB state.
@@ -469,6 +487,8 @@ void main()
         else if (appState == APP_STATE_DISPLAY && lastReadingValid == true)
         {
             uint8_t oldDisplayState = displayState;
+            static uint8_t greenYellowTransitionCount = 0;
+            static uint8_t yellowRedTransitionCount = 0;
             static uint8_t batteryState = BATTERY_NORMAL;
            
             // Get the ADC reading for low battery
@@ -505,26 +525,40 @@ void main()
             else if (oldDisplayState == DISP_STATE_GREEN) 
             {
                 // If the counter is within the yellow threshold, transition
-                if (lastReading < db.sdb.rangePointYellow)
+                if (lastReading < db.sdb.rangePointYellow) 
+                {
                     displayState = DISP_STATE_YELLOW;
+                    greenYellowTransitionCount++;
+                    yellowRedTransitionCount = 0;
+                }
             
             } 
             // If the state is yellow
             else if (oldDisplayState == DISP_STATE_YELLOW) 
             {
                 // If the state is within the red threshold, transition
-                if (lastReading < db.sdb.rangePointRed)
+                if (lastReading < db.sdb.rangePointRed) 
+                {
                     displayState = DISP_STATE_RED;
+                    yellowRedTransitionCount++;
+                }
                 // If the state is outside the green threshold, transition
                 else if (lastReading > (db.sdb.rangePointYellow + DISP_THRESH_DIST))
+                {
                     displayState = DISP_STATE_GREEN;                
+                    greenYellowTransitionCount++;
+                }
             } 
             // If the state is red
             else if (oldDisplayState == DISP_STATE_RED) 
             {
                 // If the state is within the yellow threshold, transition
                 if (lastReading > (db.sdb.rangePointRed + DISP_THRESH_DIST))
+                {
                     displayState = DISP_STATE_YELLOW;
+                    yellowRedTransitionCount++;
+                    greenYellowTransitionCount = 0;
+                }
             }
             
             // If the led state hasn't been changed
@@ -535,6 +569,8 @@ void main()
                 // If this has reached the threshold, move to powersaving
                 if (stableReadingCount == DISPLAY_STABLE_READINGS)
                     appState = APP_STATE_ENTER_STANDBY;
+                    greenYellowTransitionCount = 0;
+                    yellowRedTransitionCount = 0;
                 // else if the battery is low
                 else if (batteryState == BATTERY_LOW)
                 {
@@ -544,6 +580,15 @@ void main()
                     else
                         setLights(DISP_STATE_OFF);
                 }
+
+
+            }
+            else if (greenYellowTransitionCount > SHIFTING_THRESH || 
+                    yellowRedTransitionCount > SHIFTING_THRESH)
+            {
+                appState = APP_STATE_ENTER_STANDBY;
+                greenYellowTransitionCount = 0;
+                yellowRedTransitionCount = 0;
             }
             else 
             {
