@@ -225,6 +225,9 @@ void interrupt ISR(void)
 // Number of stable readings to leave display state
 #define DISPLAY_STABLE_READINGS     25
 
+// The number of times the device is allowed to shift back and forth in display mode
+// before power saving is enabled
+#define SHIFTING_THRESH             12
 
 void blink_light(uint16_t lightColour, uint8_t flashes) {
     uint8_t i = 0;
@@ -458,6 +461,8 @@ void main()
         else if (appState == APP_STATE_DISPLAY && lastReadingValid == true)
         {
             uint8_t oldDisplayState = displayState;
+            static uint8_t greenYellowTransitionCount = 0;
+            static uint8_t yellowRedTransitionCount = 0;
             
             // Handle initial state of scale
             if (oldDisplayState == DISP_STATE_INIT) 
@@ -474,26 +479,40 @@ void main()
             else if (oldDisplayState == DISP_STATE_GREEN) 
             {
                 // If the counter is within the yellow threshold, transition
-                if (lastReading < db.sdb.rangePointYellow)
+                if (lastReading < db.sdb.rangePointYellow) 
+                {
                     displayState = DISP_STATE_YELLOW;
+                    greenYellowTransitionCount++;
+                    yellowRedTransitionCount = 0;
+                }
             
             } 
             // If the state is yellow
             else if (oldDisplayState == DISP_STATE_YELLOW) 
             {
                 // If the state is within the red threshold, transition
-                if (lastReading < db.sdb.rangePointRed)
+                if (lastReading < db.sdb.rangePointRed) 
+                {
                     displayState = DISP_STATE_RED;
+                    yellowRedTransitionCount++;
+                }
                 // If the state is outside the green threshold, transition
                 else if (lastReading > (db.sdb.rangePointYellow + DISP_THRESH_DIST))
+                {
                     displayState = DISP_STATE_GREEN;                
+                    greenYellowTransitionCount++;
+                }
             } 
             // If the state is red
             else if (oldDisplayState == DISP_STATE_RED) 
             {
                 // If the state is within the yellow threshold, transition
                 if (lastReading > (db.sdb.rangePointRed + DISP_THRESH_DIST))
+                {
                     displayState = DISP_STATE_YELLOW;
+                    yellowRedTransitionCount++;
+                    greenYellowTransitionCount = 0;
+                }
             }
             
             // If the led state hasn't been changed
@@ -504,6 +523,15 @@ void main()
                 // If this has reached the threshold, move to powersaving
                 if (stableReadingCount == DISPLAY_STABLE_READINGS)
                     appState = APP_STATE_ENTER_STANDBY;
+                    greenYellowTransitionCount = 0;
+                    yellowRedTransitionCount = 0;
+            }
+            else if (greenYellowTransitionCount > SHIFTING_THRESH || 
+                    yellowRedTransitionCount > SHIFTING_THRESH)
+            {
+                appState = APP_STATE_ENTER_STANDBY;
+                greenYellowTransitionCount = 0;
+                yellowRedTransitionCount = 0;
             }
             else 
             {
