@@ -313,6 +313,10 @@ void main()
     bool analogueReadingValid = false;
     bool batteryFlash = true;
     
+    // Variables for preventing endless transitioning from stopping powersaving mode
+    uint8_t greenYellowTransitionCount = 0;
+    uint8_t yellowRedTransitionCount = 0;
+    
     // Temporary code for testing
     db.sdb.rangePointYellow = 15;
     db.sdb.rangePointRed = 5;       
@@ -474,6 +478,10 @@ void main()
             ADCON0bits.GO_nDONE = 1;
             analogueReadingValid = false;
             
+            // Reset the transition counter
+            greenYellowTransitionCount = 0;
+            yellowRedTransitionCount = 0;
+            
             // Reset the battery flash variable
             batteryFlash = true;
             
@@ -487,8 +495,6 @@ void main()
         else if (appState == APP_STATE_DISPLAY && lastReadingValid == true)
         {
             uint8_t oldDisplayState = displayState;
-            static uint8_t greenYellowTransitionCount = 0;
-            static uint8_t yellowRedTransitionCount = 0;
             static uint8_t batteryState = BATTERY_NORMAL;
            
             // Get the ADC reading for low battery
@@ -570,8 +576,6 @@ void main()
                 if (stableReadingCount == DISPLAY_STABLE_READINGS)
                 {
                     appState = APP_STATE_ENTER_STANDBY;
-                    greenYellowTransitionCount = 0;
-                    yellowRedTransitionCount = 0;
                 }
                 // else if the battery is low
                 else if (batteryState == BATTERY_LOW)
