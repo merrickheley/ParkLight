@@ -285,9 +285,6 @@ void main()
     /* Initialise main variables */
     char buf[BUFSIZE];
     
-    /* Run init code*/
-    init();
-    
     // Handle readings within main loop
     bool lastReadingValid = false;
     uint8_t lastReading = 0;
@@ -317,6 +314,12 @@ void main()
     uint8_t greenYellowTransitionCount = 0;
     uint8_t yellowRedTransitionCount = 0;
     
+    // Count the number of reading not received
+    uint8_t noReadingCounter = 0;
+    
+    /* Run init code*/
+    init();
+    
     // Temporary code for testing
     db.sdb.rangePointYellow = 15;
     db.sdb.rangePointRed = 5;       
@@ -324,8 +327,6 @@ void main()
     /* Trigger the sensor for the first time */
     TLC5926_SetLights(LIGHT_OFF);
     HCSR04_Trigger();
-    
-    uint8_t noReadingCounter = 0;
     
     while(1) {
         
