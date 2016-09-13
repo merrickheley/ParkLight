@@ -568,9 +568,11 @@ void main()
                 
                 // If this has reached the threshold, move to powersaving
                 if (stableReadingCount == DISPLAY_STABLE_READINGS)
+                {
                     appState = APP_STATE_ENTER_STANDBY;
                     greenYellowTransitionCount = 0;
                     yellowRedTransitionCount = 0;
+                }
                 // else if the battery is low
                 else if (batteryState == BATTERY_LOW)
                 {
