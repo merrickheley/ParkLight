@@ -724,7 +724,8 @@ void main()
 			lastReadingValid = false;
 
 			HCSR04_Trigger();
-			//sprintf(buf, "D: %d\r\n", delay_until_reading(readingDelayTime));
+            delay_until_reading(readingDelayTime);
+			//sprintf(buf, "D: \r\n", );
 			//UART_write_text(buf);
 		}
     }
