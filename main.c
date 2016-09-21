@@ -100,7 +100,7 @@ void init(void)
     // Enable RC5 to TLC
     PIN_ENABLE_TLC5926 = 1;
     
-    UART_init(BAUD_RATE_FAST, _XTAL_FREQ, true, false);
+    //UART_init(BAUD_RATE_FAST, _XTAL_FREQ, true, false);
     TLC5926_init();
     
     // Drive it low to turn LED's on.
@@ -111,7 +111,7 @@ void init(void)
     
     __delay_ms(100);
     
-    UART_write_text("BOOT!\r\n");
+    //UART_write_text("BOOT!\r\n");
 }
 
 void save_reading()
@@ -410,6 +410,10 @@ void main()
                 PIN_LED_OE = IO_HIGH;
                 // Disable TLC via PIN_TLC_ENABLE
                 PIN_ENABLE_TLC5926 = 0;
+                
+                // Disable ADC module
+                ADCON0bits.ADON = 0;
+                
                 // Reading delay time
                 readingDelayTime = HCSR04_TRIG_DELAY_STANDBY;
                 
@@ -430,7 +434,7 @@ void main()
                     // If the reading isn't valid
                     if (filteredReading > MAX_COUNTER_VAL)
                     {
-                        UART_write_text("STANDBY FAIL: VAL\r\n");
+                        //UART_write_text("STANDBY FAIL: VAL\r\n");
                         blink_light(LIGHT_RED, CALIB_FLASHES);
                         appState = APP_STATE_ENTER_DISPLAY;
                     }
@@ -495,6 +499,9 @@ void main()
             // Set delay time
             readingDelayTime = HCSR04_TRIG_DELAY_DISPLAY;
             
+            // Enable the ADC
+            ADCON0bits.ADON = 1;
+            
             // Start the ADC for a low battery reading
             ADCON0bits.GO_nDONE = 1;
             analogueReadingValid = false;
@@ -531,8 +538,8 @@ void main()
                 else if (batteryState == BATTERY_LOW && analog > BATTERY_LOW_LEAVE)
                     batteryState = BATTERY_NORMAL;
                 
-                sprintf(buf, "A: %u\r\n", analog);
-                UART_write_text(buf);
+                //sprintf(buf, "A: %u\r\n", analog);
+                //UART_write_text(buf);
                 
                 analogueReadingValid = true;
             }
@@ -660,7 +667,7 @@ void main()
                     // If the reading isn't valid
                     if (filteredReading > MAX_COUNTER_VAL)
                     {
-                        UART_write_text("CAL FAIL: VAL\r\n");
+                        //UART_write_text("CAL FAIL: VAL\r\n");
                         blink_light(LIGHT_RED, CALIB_FLASHES);
                         appState = APP_STATE_ENTER_DISPLAY;
                     }
@@ -681,13 +688,13 @@ void main()
                 // yellow
                 if (absdiff(db.sdb.rangePointYellow, filteredReading) > CALIB_DISTANCE) {
                     db.sdb.rangePointRed = filteredReading;
-                    sprintf(buf, "P RED: %d\r\n", db.sdb.rangePointRed);
-                    UART_write_text(buf);
+                    //sprintf(buf, "P RED: %d\r\n", db.sdb.rangePointRed);
+                    //UART_write_text(buf);
                     blink_light(LIGHT_GREEN, CALIB_FLASHES);
                 }
                 else {
-                    sprintf(buf, "PF RED: %d %d\r\n", db.sdb.rangePointYellow, filteredReading);
-                    UART_write_text(buf);
+                    //sprintf(buf, "PF RED: %d %d\r\n", db.sdb.rangePointYellow, filteredReading);
+                    //UART_write_text(buf);
                     blink_light(LIGHT_RED, CALIB_FLASHES);
                 }
             }
@@ -697,13 +704,13 @@ void main()
                 // red
                 if (absdiff(db.sdb.rangePointRed, filteredReading) > CALIB_DISTANCE) {
                     db.sdb.rangePointYellow = filteredReading;
-                    sprintf(buf, "P YEL: %d\r\n", db.sdb.rangePointYellow);
-                    UART_write_text(buf);
+                    //sprintf(buf, "P YEL: %d\r\n", db.sdb.rangePointYellow);
+                    //UART_write_text(buf);
                     blink_light(LIGHT_GREEN, CALIB_FLASHES);
                 }
                 else {
-                    sprintf(buf, "PF YEL: %d %d\r\n", db.sdb.rangePointRed, filteredReading);
-                    UART_write_text(buf);
+                    //sprintf(buf, "PF YEL: %d %d\r\n", db.sdb.rangePointRed, filteredReading);
+                    //UART_write_text(buf);
                     blink_light(LIGHT_RED, CALIB_FLASHES);
                 }
             }
@@ -717,7 +724,7 @@ void main()
 			lastReadingValid = false;
 
 			HCSR04_Trigger();
-			sprintf(buf, "D: %d\r\n", delay_until_reading(readingDelayTime));
+			//sprintf(buf, "D: %d\r\n", delay_until_reading(readingDelayTime));
 			//UART_write_text(buf);
 		}
     }
