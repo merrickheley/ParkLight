@@ -45,7 +45,7 @@ void init(void)
     OSCCONbits.IRCF = 0b1101;
     
     // Set the time-out period of the WDT
-    WDTCON = 0b00010011; // 512ms typical time-out period
+    WDTCON = WATCHDOG_TYP_512MS; // 512ms typical time-out period
 
     INTCONbits.GIE = 1; // Enable global interrupts
     INTCONbits.PEIE = 1; // Enable peripheral interrupts
@@ -181,6 +181,7 @@ void interrupt ISR(void)
 #define APP_STATE_ENTER_DISPLAY     3
 #define APP_STATE_ENTER_STANDBY     4
 #define APP_STATE_ENTER_CALIB       5
+#define APP_STATE_INDEFINITE_SLEEP  6
 
 // Calib types
 #define APP_CALIB_NONE              0
@@ -339,8 +340,8 @@ void main()
             lastReading = timeReading;
             
             // Process the reading            
-//            sprintf(buf, "R: %d\r\n", lastReading);
-//            UART_write_text(buf);
+			//sprintf(buf, "R: %d\r\n", lastReading);
+			//UART_write_text(buf);
             
             // Clear the new time reading
             newTimeReading = false;
@@ -348,16 +349,36 @@ void main()
         } else {
             noReadingCounter++;
         }
-        
-        // If there have been no readings for 100 iterations, 
-        // a problem has occured with the HCSR04
+        //////////////////////////////////
+        // Handle entering sleep forever if 
+		// HCSR04 readings do not occur
+        //////////////////////////////////
         if (noReadingCounter > MAX_NO_READING_THRESH) 
         {
-            blink_light(LIGHT_CENTERS, 5);
-            continue;
+			blink_light(LIGHT_CENTERS, 10);
+			appState = APP_STATE_INDEFINITE_SLEEP;
         }
-        
-        // If a calibration button has been pressed enter the ENTER_CALIB state.
+		//////////////////////////////////
+        // Handle the recurring sleep state
+		// NOTE: Exiting this state requires a reset of the device
+        //////////////////////////////////
+		if (appState == APP_STATE_INDEFINITE_SLEEP) {
+			
+			// Ensure all peripherals are turned off
+            INTCONbits.TMR0IE = 0;
+			PIN_ENABLE_HCSR04 = 0;
+			PIN_LED_OE = IO_HIGH;
+			PIN_ENABLE_TLC5926 = 0;
+			
+			// Change the watchdog to max timer
+			WDTCON = WATCHDOG_MAX_256S; // 256s interval.
+			
+			// Enter Sleep state
+            SLEEP();
+		}
+        //////////////////////////////////
+        // Handle entering the calibration state
+        //////////////////////////////////
         if ((appState != APP_STATE_ENTER_CALIB) && 
                 (btnRedPressed == true || btnYellowPressed == true))
         {
@@ -373,7 +394,6 @@ void main()
             // Enter the calibration state
             appState = APP_STATE_ENTER_CALIB;
         }
-        
         //////////////////////////////////
         // Handle entering the standby state
         //////////////////////////////////
@@ -691,12 +711,14 @@ void main()
             appState = APP_STATE_ENTER_DISPLAY; 
         }
         
-        // We're done with the reading for this iteration of the application,
-        // so set the reading as invalid.
-        lastReadingValid = false;
+		if (appState != APP_STATE_INDEFINITE_SLEEP) {
+			// We're done with the reading for this iteration of the application,
+			// so set the reading as invalid.
+			lastReadingValid = false;
 
-        HCSR04_Trigger();
-        sprintf(buf, "D: %d\r\n", delay_until_reading(readingDelayTime));
-//        UART_write_text(buf);
+			HCSR04_Trigger();
+			sprintf(buf, "D: %d\r\n", delay_until_reading(readingDelayTime));
+			//UART_write_text(buf);
+		}
     }
 }

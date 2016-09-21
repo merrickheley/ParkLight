@@ -43,4 +43,7 @@
 #define BTN_SET_YELLOW          RB4
 #define BTN_SET_RED             RB5
 
+#define WATCHDOG_MAX_256S		0b00100101
+#define WATCHDOG_TYP_512MS		0b00010011
+
 #endif	/* CONSTANTS_H */
