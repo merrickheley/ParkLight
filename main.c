@@ -247,7 +247,7 @@ void blink_light(uint16_t lightColour, uint8_t flashes) {
 // Delays in multiples of 10ms until a new reading has occurred
 uint16_t delay_until_reading(uint16_t minimumTime) 
 {
-#define DELAY_TIME  10
+#define DELAY_TIME  2
 #define MAX_COUNTS_UNTIL_ERR   50
     unsigned char tBuf[20] = {0};
     
