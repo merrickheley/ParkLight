@@ -695,7 +695,7 @@ void main()
                 else {
                     //sprintf(buf, "PF RED: %d %d\r\n", db.sdb.rangePointYellow, filteredReading);
                     //UART_write_text(buf);
-                    blink_light(LIGHT_RED, CALIB_FLASHES);
+                    blink_light(LIGHT_YELLOW, CALIB_FLASHES);
                 }
             }
             // If the yellow button was pressed.
@@ -711,7 +711,7 @@ void main()
                 else {
                     //sprintf(buf, "PF YEL: %d %d\r\n", db.sdb.rangePointRed, filteredReading);
                     //UART_write_text(buf);
-                    blink_light(LIGHT_RED, CALIB_FLASHES);
+                    blink_light(LIGHT_YELLOW, CALIB_FLASHES);
                 }
             }
             db_save();
