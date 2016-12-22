@@ -2,7 +2,7 @@
 
 ## Summary
 
-Park Light is a parking sensor designed to be fixed to the wall of a garage.
+Park Light is a parking assistance sensor designed to be fixed to the wall of a garage.
 It automatically activates when a car is detected, and as the car approaches transitions from green to yellow before transitioning to red at the point at which the car should stop.
 
 It is able to be distance-calibrated by the user to suit their specific environment, and features battery saving capabilities to extend its life.
