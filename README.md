@@ -58,6 +58,6 @@ This project uses an externally sourced HCSR04 distance sensor.
 
 ![Board, Bottom](assets/Board_Bottom.jpg)
 
-![Board, Buttons](assets/Board_Buttons.jpg)
+![Board, Buttons](assets/Board_Button.jpg)
 
 ![Board, Power](assets/Board_Power.jpg)
